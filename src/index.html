@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#FFF5EB">
+  <meta name="description" content="미미 식단 관리 - 고양이 미미의 일일 식단, 배변, 건강 상태 기록">
+  <title>미미 식단 관리 🐱</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
+</head>
+<body>
+  <div id="app">
+    <!-- 로그인 화면 -->
+    <div id="login-screen" class="screen">
+      <div class="login-container">
+        <div class="login-header">
+          <span class="cat-icon">🐱</span>
+          <h1>미미 식단 관리</h1>
+          <p class="subtitle">미미의 건강을 기록해요</p>
+        </div>
+        <form id="login-form" class="login-form">
+          <div class="input-group">
+            <label for="password">비밀번호</label>
+            <input type="password" id="password" inputmode="numeric" placeholder="비밀번호를 입력하세요" autocomplete="current-password" required>
+          </div>
+          <button type="submit" id="login-btn" class="btn btn-primary btn-large">
+            로그인
+          </button>
+          <p id="login-error" class="error-message hidden"></p>
+        </form>
+        <div class="login-footer">
+          <span class="paw">🐾</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 홈 화면 -->
+    <div id="home-screen" class="screen hidden">
+      <header class="header">
+        <h1><span class="cat-emoji">🐱</span> 미미 식단 관리</h1>
+        <button id="logout-btn" class="btn-icon" title="로그아웃">🚪</button>
+      </header>
+      <main class="home-content">
+        <button id="btn-record" class="menu-btn">
+          <span class="menu-icon">🐱</span>
+          <span class="menu-text">미미 상태 기록하기</span>
+        </button>
+        <button id="btn-view" class="menu-btn">
+          <span class="menu-icon">📊</span>
+          <span class="menu-text">미미 기록 확인하기</span>
+        </button>
+      </main>
+      <footer class="footer">
+        <span class="paw-prints">🐾 🐾 🐾</span>
+      </footer>
+    </div>
+
+    <!-- 기록하기 화면 -->
+    <div id="record-screen" class="screen hidden">
+      <header class="header">
+        <button id="record-back-btn" class="btn-icon">←</button>
+        <h1>미미 상태 기록하기</h1>
+        <span class="header-spacer"></span>
+      </header>
+      <main class="record-content">
+        <div class="current-time" id="current-time"></div>
+
+        <!-- 옵션 1: 물 -->
+        <section class="option-section">
+          <h2 class="option-title">💧 물</h2>
+          <div class="radio-group" id="water-group">
+            <label class="radio-label">
+              <input type="radio" name="water" value="자급">
+              <span class="radio-text">자급 (스스로 마심)</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="water" value="지급">
+              <span class="radio-text">지급 (보호자가 줌)</span>
+            </label>
+          </div>
+        </section>
+
+        <!-- 옵션 2: 사료량 -->
+        <section class="option-section">
+          <h2 class="option-title">🍚 사료량</h2>
+          <div class="checkbox-with-input">
+            <label class="checkbox-label">
+              <input type="checkbox" id="food-enabled">
+              <span class="checkbox-text">사료 기록하기</span>
+            </label>
+            <div class="stepper-container" id="food-stepper-container">
+              <button type="button" class="stepper-btn" id="food-decrease">-</button>
+              <span class="stepper-value" id="food-value">40</span>
+              <span class="stepper-unit">개</span>
+              <button type="button" class="stepper-btn" id="food-increase">+</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 옵션 3: 간식 -->
+        <section class="option-section">
+          <h2 class="option-title">🍬 간식</h2>
+          <div class="snack-options">
+            <div class="snack-item">
+              <label class="checkbox-label">
+                <input type="checkbox" id="snack-partymix-enabled">
+                <span class="checkbox-text">파티믹스</span>
+              </label>
+              <div class="stepper-container small" id="partymix-stepper">
+                <button type="button" class="stepper-btn small" id="partymix-decrease">-</button>
+                <span class="stepper-value small" id="partymix-value">5</span>
+                <span class="stepper-unit">개</span>
+                <button type="button" class="stepper-btn small" id="partymix-increase">+</button>
+              </div>
+            </div>
+            <div class="snack-item">
+              <label class="checkbox-label">
+                <input type="checkbox" id="snack-jogong-enabled">
+                <span class="checkbox-text">조공</span>
+              </label>
+              <div class="stepper-container small" id="jogong-stepper">
+                <button type="button" class="stepper-btn small" id="jogong-decrease">-</button>
+                <span class="stepper-value small" id="jogong-value">5</span>
+                <span class="stepper-unit">개</span>
+                <button type="button" class="stepper-btn small" id="jogong-increase">+</button>
+              </div>
+            </div>
+            <div class="snack-item">
+              <label class="checkbox-label">
+                <input type="checkbox" id="snack-churu-enabled">
+                <span class="checkbox-text">츄르</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 옵션 4: 대변 -->
+        <section class="option-section">
+          <h2 class="option-title">💩 대변</h2>
+          <div class="checkbox-with-input">
+            <label class="checkbox-label">
+              <input type="checkbox" id="poop-enabled">
+              <span class="checkbox-text">대변 기록하기</span>
+            </label>
+            <div class="stepper-container" id="poop-stepper-container">
+              <button type="button" class="stepper-btn" id="poop-decrease">-</button>
+              <span class="stepper-value" id="poop-value">1</span>
+              <span class="stepper-unit">개</span>
+              <button type="button" class="stepper-btn" id="poop-increase">+</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 옵션 5: 소변 -->
+        <section class="option-section">
+          <h2 class="option-title">💦 소변</h2>
+          <div class="checkbox-with-input">
+            <label class="checkbox-label">
+              <input type="checkbox" id="urine-enabled">
+              <span class="checkbox-text">소변 기록하기</span>
+            </label>
+            <div class="radio-group horizontal" id="urine-group">
+              <label class="radio-label">
+                <input type="radio" name="urine" value="대">
+                <span class="radio-text">대</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="urine" value="중" checked>
+                <span class="radio-text">중</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="urine" value="소">
+                <span class="radio-text">소</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 옵션 6: 기타 메모 -->
+        <section class="option-section">
+          <h2 class="option-title">📝 기타 메모</h2>
+          <div class="memo-grid" id="memo-options">
+            <label class="memo-label">
+              <input type="checkbox" value="구토를 했어요 🤮">
+              <span class="memo-text">구토를 했어요 🤮</span>
+            </label>
+            <label class="memo-label">
+              <input type="checkbox" value="앙탈이 심했어요 😾">
+              <span class="memo-text">앙탈이 심했어요 😾</span>
+            </label>
+            <label class="memo-label">
+              <input type="checkbox" value="너무 울어요 😿">
+              <span class="memo-text">너무 울어요 😿</span>
+            </label>
+            <label class="memo-label">
+              <input type="checkbox" value="밥을 안 먹어요 🙅">
+              <span class="memo-text">밥을 안 먹어요 🙅</span>
+            </label>
+            <label class="memo-label">
+              <input type="checkbox" value="평소보다 활발해요 🏃">
+              <span class="memo-text">평소보다 활발해요 🏃</span>
+            </label>
+            <label class="memo-label">
+              <input type="checkbox" value="많이 잤어요 😴">
+              <span class="memo-text">많이 잤어요 😴</span>
+            </label>
+            <label class="memo-label">
+              <input type="checkbox" value="털을 많이 핥아요 🐈">
+              <span class="memo-text">털을 많이 핥아요 🐈</span>
+            </label>
+            <label class="memo-label">
+              <input type="checkbox" value="숨어있어요 🙈">
+              <span class="memo-text">숨어있어요 🙈</span>
+            </label>
+            <label class="memo-label">
+              <input type="checkbox" value="컨디션이 좋아요 ✨">
+              <span class="memo-text">컨디션이 좋아요 ✨</span>
+            </label>
+            <label class="memo-label">
+              <input type="checkbox" value="물을 많이 마셔요 💧">
+              <span class="memo-text">물을 많이 마셔요 💧</span>
+            </label>
+          </div>
+        </section>
+
+        <div class="save-section">
+          <button id="save-record-btn" class="btn btn-primary btn-large" disabled>
+            저장하기
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <!-- 조회하기 화면 -->
+    <div id="view-screen" class="screen hidden">
+      <header class="header">
+        <button id="view-back-btn" class="btn-icon">←</button>
+        <h1>미미 기록 확인하기</h1>
+        <span class="header-spacer"></span>
+      </header>
+      <main class="view-content">
+        <!-- 기간 필터 -->
+        <div class="period-filter">
+          <button class="period-btn active" data-period="today">오늘</button>
+          <button class="period-btn" data-period="3days">3일</button>
+          <button class="period-btn" data-period="week">일주일</button>
+          <button class="period-btn" data-period="month">한달</button>
+        </div>
+
+        <!-- 탭 메뉴 -->
+        <div class="tab-menu">
+          <button class="tab-btn active" data-tab="food">🍚🍬 먹은 양</button>
+          <button class="tab-btn" data-tab="bathroom">💩💦 배변</button>
+          <button class="tab-btn" data-tab="water">💧 물</button>
+          <button class="tab-btn" data-tab="memo">📝 특이사항</button>
+        </div>
+
+        <!-- 탭 컨텐츠 -->
+        <div class="tab-content">
+          <!-- 먹은 양 탭 -->
+          <div id="tab-food" class="tab-panel active">
+            <div class="stats-card">
+              <h3>📊 <span class="period-label">오늘</span> 먹은 양</h3>
+              <div class="stats-content" id="food-stats">
+                <div class="loading">로딩 중...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 배변 탭 -->
+          <div id="tab-bathroom" class="tab-panel hidden">
+            <div class="stats-card">
+              <h3>📊 <span class="period-label">오늘</span> 배변 기록</h3>
+              <div class="stats-content" id="bathroom-stats">
+                <div class="loading">로딩 중...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 물 탭 -->
+          <div id="tab-water" class="tab-panel hidden">
+            <div class="stats-card">
+              <h3>📊 <span class="period-label">오늘</span> 물 섭취 기록</h3>
+              <div class="stats-content" id="water-stats">
+                <div class="loading">로딩 중...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 특이사항 탭 -->
+          <div id="tab-memo" class="tab-panel hidden">
+            <div class="stats-card">
+              <h3>📊 <span class="period-label">오늘</span> 특이사항</h3>
+              <div class="stats-content" id="memo-stats">
+                <div class="loading">로딩 중...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 상세 기록 보기 -->
+        <div class="detail-section">
+          <button id="toggle-detail-btn" class="btn btn-secondary">
+            상세 기록 보기
+          </button>
+          <div id="detail-records" class="detail-records hidden">
+            <div class="loading">로딩 중...</div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 토스트 메시지 -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- 확인 모달 -->
+    <div id="confirm-modal" class="modal hidden">
+      <div class="modal-content">
+        <p id="confirm-message">기록을 저장하시겠습니까?</p>
+        <div class="modal-buttons">
+          <button id="confirm-cancel" class="btn btn-secondary">취소</button>
+          <button id="confirm-ok" class="btn btn-primary">확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/api.js"></script>
+  <script src="scripts/auth.js"></script>
+  <script src="scripts/utils.js"></script>
+  <script src="scripts/app.js"></script>
+</body>
+</html>

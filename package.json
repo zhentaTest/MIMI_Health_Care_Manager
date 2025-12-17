@@ -1,0 +1,27 @@
+{
+  "name": "mimi-diet-tracker",
+  "version": "1.0.0",
+  "description": "미미 식단 관리 웹 앱 - 고양이 미미의 일일 식단, 배변, 건강 상태 기록",
+  "main": "src/scripts/app.js",
+  "scripts": {
+    "dev": "npx wrangler pages dev src --d1 mimi-db --local",
+    "deploy": "npx wrangler pages deploy src",
+    "db:migrate": "npx wrangler d1 execute mimi-db --file=./migrations/0001_create_tables.sql"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "keywords": [
+    "cat",
+    "diet",
+    "tracker",
+    "health",
+    "cloudflare",
+    "d1"
+  ],
+  "author": "",
+  "license": "MIT"
+}
