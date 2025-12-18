@@ -240,15 +240,21 @@
         <span class="header-spacer"></span>
       </header>
       <main class="view-content">
-        <!-- 날짜 네비게이션 -->
-        <div class="date-navigation">
+        <!-- 모드 스위치 -->
+        <div class="view-mode-switch">
+          <button class="view-mode-btn active" data-mode="daily">📅 날짜별 보기</button>
+          <button class="view-mode-btn" data-mode="period">📊 기간별 통계</button>
+        </div>
+
+        <!-- 날짜 네비게이션 (날짜별 모드) -->
+        <div id="date-navigation" class="date-navigation">
           <button id="date-prev-btn" class="date-nav-btn" title="이전 날짜">←</button>
           <span id="current-date-display" class="date-display">2025.12.18</span>
           <button id="date-next-btn" class="date-nav-btn" title="다음 날짜" disabled>→</button>
         </div>
 
-        <!-- 기간 필터 -->
-        <div class="period-filter">
+        <!-- 기간 필터 (기간별 모드) -->
+        <div id="period-filter" class="period-filter hidden">
           <button class="period-btn active" data-period="today">오늘</button>
           <button class="period-btn" data-period="3days">3일</button>
           <button class="period-btn" data-period="week">일주일</button>

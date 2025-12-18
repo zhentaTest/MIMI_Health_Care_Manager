@@ -6,6 +6,7 @@ class MimiApp {
     this.currentPeriod = 'today';
     this.currentTab = 'food';
     this.selectedDate = this.getTodayKST(); // 선택된 날짜 (YYYY-MM-DD)
+    this.viewMode = 'daily'; // 'daily' = 날짜별 보기, 'period' = 기간별 통계
 
     // 기록 폼 상태
     this.recordForm = {
@@ -30,8 +31,9 @@ class MimiApp {
   // 한국 시간 기준 오늘 날짜 가져오기 (YYYY-MM-DD)
   getTodayKST() {
     const now = new Date();
-    const kstDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-    return kstDate.toISOString().split('T')[0];
+    // Intl.DateTimeFormat을 사용하여 한국 시간 기준 날짜 가져오기
+    const formatter = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' });
+    return formatter.format(now); // 'sv-SE' 로케일은 YYYY-MM-DD 형식 반환
   }
 
   // 날짜를 YYYY.MM.DD 형식으로 포맷
@@ -42,9 +44,13 @@ class MimiApp {
 
   // 날짜를 하루 이동 (direction: -1 또는 1)
   shiftDate(dateStr, direction) {
-    const date = new Date(dateStr + 'T00:00:00');
-    date.setDate(date.getDate() + direction);
-    return date.toISOString().split('T')[0];
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    date.setUTCDate(date.getUTCDate() + direction);
+    const newYear = date.getUTCFullYear();
+    const newMonth = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const newDay = String(date.getUTCDate()).padStart(2, '0');
+    return `${newYear}-${newMonth}-${newDay}`;
   }
 
   // 선택된 날짜가 오늘인지 확인
@@ -211,10 +217,23 @@ class MimiApp {
   }
 
   setupViewListeners() {
+    // 모드 스위치
+    document.querySelectorAll('.view-mode-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        this.viewMode = e.target.dataset.mode;
+        this.updateViewModeUI();
+        this.loadCurrentTabStats();
+        this.loadDetailRecords();
+      });
+    });
+
     // 날짜 네비게이션
     document.getElementById('date-prev-btn').addEventListener('click', () => {
       this.selectedDate = this.shiftDate(this.selectedDate, -1);
       this.updateDateNavigation();
+      this.updatePeriodLabels();
       this.loadCurrentTabStats();
       this.loadDetailRecords();
     });
@@ -223,6 +242,7 @@ class MimiApp {
       if (!this.isToday(this.selectedDate)) {
         this.selectedDate = this.shiftDate(this.selectedDate, 1);
         this.updateDateNavigation();
+        this.updatePeriodLabels();
         this.loadCurrentTabStats();
         this.loadDetailRecords();
       }
@@ -460,10 +480,15 @@ class MimiApp {
   }
 
   initViewScreen() {
-    // 기간, 탭, 날짜 초기화
+    // 모드, 기간, 탭, 날짜 초기화
+    this.viewMode = 'daily';
     this.currentPeriod = 'today';
     this.currentTab = 'food';
     this.selectedDate = this.getTodayKST();
+
+    // 모드 스위치 UI 초기화
+    document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.view-mode-btn[data-mode="daily"]').classList.add('active');
 
     // UI 초기화
     document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
@@ -479,9 +504,10 @@ class MimiApp {
     document.getElementById('detail-records').classList.add('hidden');
     document.getElementById('toggle-detail-btn').textContent = '상세 기록 보기';
 
+    // 모드 UI 업데이트
+    this.updateViewModeUI();
     // 날짜 네비게이션 업데이트
     this.updateDateNavigation();
-    this.updatePeriodLabels();
     this.loadCurrentTabStats();
   }
 
@@ -491,8 +517,32 @@ class MimiApp {
     document.getElementById('date-next-btn').disabled = this.isToday(this.selectedDate);
   }
 
+  // 모드에 따른 UI 업데이트
+  updateViewModeUI() {
+    const dateNav = document.getElementById('date-navigation');
+    const periodFilter = document.getElementById('period-filter');
+
+    if (this.viewMode === 'daily') {
+      dateNav.classList.remove('hidden');
+      periodFilter.classList.add('hidden');
+      // 날짜별 모드에서는 기간을 'today'로 고정 (선택된 날짜 하루만 조회)
+      this.currentPeriod = 'today';
+    } else {
+      dateNav.classList.add('hidden');
+      periodFilter.classList.remove('hidden');
+    }
+    this.updatePeriodLabels();
+  }
+
   updatePeriodLabels() {
-    const label = Utils.getPeriodLabel(this.currentPeriod);
+    let label;
+    if (this.viewMode === 'daily') {
+      // 날짜별 모드: 선택된 날짜 표시
+      label = this.formatDateDisplay(this.selectedDate);
+    } else {
+      // 기간별 모드: 기간 이름 표시
+      label = Utils.getPeriodLabel(this.currentPeriod);
+    }
     document.querySelectorAll('.period-label').forEach(el => {
       el.textContent = label;
     });
