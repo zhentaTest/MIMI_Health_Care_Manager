@@ -220,9 +220,12 @@ class MimiApp {
     // 모드 스위치
     document.querySelectorAll('.view-mode-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
+        const targetBtn = e.target.closest('.view-mode-btn');
+        if (!targetBtn) return;
+
         document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        this.viewMode = e.target.dataset.mode;
+        targetBtn.classList.add('active');
+        this.viewMode = targetBtn.dataset.mode;
         this.updateViewModeUI();
         this.loadCurrentTabStats();
         this.loadDetailRecords();
@@ -504,7 +507,7 @@ class MimiApp {
     document.getElementById('detail-records').classList.add('hidden');
     document.getElementById('toggle-detail-btn').textContent = '상세 기록 보기';
 
-    // 모드 UI 업데이트
+    // 모드별 UI 업데이트
     this.updateViewModeUI();
     // 날짜 네비게이션 업데이트
     this.updateDateNavigation();
@@ -517,7 +520,7 @@ class MimiApp {
     document.getElementById('date-next-btn').disabled = this.isToday(this.selectedDate);
   }
 
-  // 모드에 따른 UI 업데이트
+  // 모드별 UI 업데이트
   updateViewModeUI() {
     const dateNav = document.getElementById('date-navigation');
     const periodFilter = document.getElementById('period-filter');
@@ -525,12 +528,14 @@ class MimiApp {
     if (this.viewMode === 'daily') {
       dateNav.classList.remove('hidden');
       periodFilter.classList.add('hidden');
-      // 날짜별 모드에서는 기간을 'today'로 고정 (선택된 날짜 하루만 조회)
-      this.currentPeriod = 'today';
+      // 날짜별 모드에서는 선택된 날짜 기준으로 데이터 조회
+      this.currentPeriod = 'today'; // 날짜별 모드에서는 항상 '오늘' 기준 (선택 날짜 하루)
     } else {
       dateNav.classList.add('hidden');
       periodFilter.classList.remove('hidden');
+      // 기간별 모드에서는 선택된 기간 기준으로 데이터 조회
     }
+
     this.updatePeriodLabels();
   }
 
@@ -540,7 +545,7 @@ class MimiApp {
       // 날짜별 모드: 선택된 날짜 표시
       label = this.formatDateDisplay(this.selectedDate);
     } else {
-      // 기간별 모드: 기간 이름 표시
+      // 기간별 모드: 선택된 기간 표시
       label = Utils.getPeriodLabel(this.currentPeriod);
     }
     document.querySelectorAll('.period-label').forEach(el => {
