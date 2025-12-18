@@ -6,6 +6,7 @@ class MimiApp {
     this.currentPeriod = 'today';
     this.currentTab = 'food';
     this.selectedDate = this.getTodayKST(); // 선택된 날짜 (YYYY-MM-DD)
+    this.viewMode = 'daily'; // 'daily' = 날짜별 보기, 'period' = 기간별 통계
 
     // 기록 폼 상태
     this.recordForm = {
@@ -30,8 +31,13 @@ class MimiApp {
   // 한국 시간 기준 오늘 날짜 가져오기 (YYYY-MM-DD)
   getTodayKST() {
     const now = new Date();
-    const kstDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-    return kstDate.toISOString().split('T')[0];
+    // KST (UTC+9)로 변환
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const kstTime = new Date(utc + (9 * 60 * 60000));
+    const year = kstTime.getFullYear();
+    const month = String(kstTime.getMonth() + 1).padStart(2, '0');
+    const day = String(kstTime.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   // 날짜를 YYYY.MM.DD 형식으로 포맷
@@ -211,10 +217,26 @@ class MimiApp {
   }
 
   setupViewListeners() {
+    // 모드 스위치
+    document.querySelectorAll('.view-mode-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const targetBtn = e.target.closest('.view-mode-btn');
+        if (!targetBtn) return;
+
+        document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
+        targetBtn.classList.add('active');
+        this.viewMode = targetBtn.dataset.mode;
+        this.updateViewModeUI();
+        this.loadCurrentTabStats();
+        this.loadDetailRecords();
+      });
+    });
+
     // 날짜 네비게이션
     document.getElementById('date-prev-btn').addEventListener('click', () => {
       this.selectedDate = this.shiftDate(this.selectedDate, -1);
       this.updateDateNavigation();
+      this.updatePeriodLabels();
       this.loadCurrentTabStats();
       this.loadDetailRecords();
     });
@@ -223,6 +245,7 @@ class MimiApp {
       if (!this.isToday(this.selectedDate)) {
         this.selectedDate = this.shiftDate(this.selectedDate, 1);
         this.updateDateNavigation();
+        this.updatePeriodLabels();
         this.loadCurrentTabStats();
         this.loadDetailRecords();
       }
@@ -460,10 +483,15 @@ class MimiApp {
   }
 
   initViewScreen() {
-    // 기간, 탭, 날짜 초기화
+    // 모드, 기간, 탭, 날짜 초기화
+    this.viewMode = 'daily';
     this.currentPeriod = 'today';
     this.currentTab = 'food';
     this.selectedDate = this.getTodayKST();
+
+    // 모드 스위치 UI 초기화
+    document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.view-mode-btn[data-mode="daily"]').classList.add('active');
 
     // UI 초기화
     document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
@@ -479,9 +507,10 @@ class MimiApp {
     document.getElementById('detail-records').classList.add('hidden');
     document.getElementById('toggle-detail-btn').textContent = '상세 기록 보기';
 
+    // 모드별 UI 업데이트
+    this.updateViewModeUI();
     // 날짜 네비게이션 업데이트
     this.updateDateNavigation();
-    this.updatePeriodLabels();
     this.loadCurrentTabStats();
   }
 
@@ -491,8 +520,34 @@ class MimiApp {
     document.getElementById('date-next-btn').disabled = this.isToday(this.selectedDate);
   }
 
+  // 모드별 UI 업데이트
+  updateViewModeUI() {
+    const dateNav = document.getElementById('date-navigation');
+    const periodFilter = document.getElementById('period-filter');
+
+    if (this.viewMode === 'daily') {
+      dateNav.classList.remove('hidden');
+      periodFilter.classList.add('hidden');
+      // 날짜별 모드에서는 선택된 날짜 기준으로 데이터 조회
+      this.currentPeriod = 'today'; // 날짜별 모드에서는 항상 '오늘' 기준 (선택 날짜 하루)
+    } else {
+      dateNav.classList.add('hidden');
+      periodFilter.classList.remove('hidden');
+      // 기간별 모드에서는 선택된 기간 기준으로 데이터 조회
+    }
+
+    this.updatePeriodLabels();
+  }
+
   updatePeriodLabels() {
-    const label = Utils.getPeriodLabel(this.currentPeriod);
+    let label;
+    if (this.viewMode === 'daily') {
+      // 날짜별 모드: 선택된 날짜 표시
+      label = this.formatDateDisplay(this.selectedDate);
+    } else {
+      // 기간별 모드: 선택된 기간 표시
+      label = Utils.getPeriodLabel(this.currentPeriod);
+    }
     document.querySelectorAll('.period-label').forEach(el => {
       el.textContent = label;
     });
