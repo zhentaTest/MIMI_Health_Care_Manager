@@ -9,35 +9,45 @@ const corsHeaders = {
 };
 
 // 한국 시간으로 날짜 범위 계산
-function getDateRange(period) {
-  // 한국 시간 기준 현재 시간
-  const now = new Date();
+function getDateRange(period, dateParam = null) {
   const kstOffset = 9 * 60; // UTC+9
-  const kstNow = new Date(now.getTime() + kstOffset * 60 * 1000);
 
-  // 오늘 자정 (KST)
-  const todayStart = new Date(kstNow);
-  todayStart.setUTCHours(0, 0, 0, 0);
-  todayStart.setTime(todayStart.getTime() - kstOffset * 60 * 1000); // UTC로 변환
+  let baseDate;
+  if (dateParam) {
+    // date 파라미터가 있으면 해당 날짜를 기준으로 사용
+    baseDate = new Date(dateParam + 'T00:00:00+09:00');
+  } else {
+    // 없으면 오늘 날짜 사용
+    const now = new Date();
+    baseDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  }
+
+  // 기준 날짜의 자정 (KST)
+  const baseDateStart = new Date(baseDate);
+  baseDateStart.setHours(0, 0, 0, 0);
+
+  // 기준 날짜의 23:59:59 (KST)
+  const baseDateEnd = new Date(baseDate);
+  baseDateEnd.setHours(23, 59, 59, 999);
 
   let startDate;
-  const endDate = now;
+  let endDate = baseDateEnd;
 
   switch (period) {
     case 'today':
-      startDate = todayStart;
+      startDate = baseDateStart;
       break;
     case '3days':
-      startDate = new Date(todayStart.getTime() - 2 * 24 * 60 * 60 * 1000);
+      startDate = new Date(baseDateStart.getTime() - 2 * 24 * 60 * 60 * 1000);
       break;
     case 'week':
-      startDate = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+      startDate = new Date(baseDateStart.getTime() - 6 * 24 * 60 * 60 * 1000);
       break;
     case 'month':
-      startDate = new Date(todayStart.getTime() - 29 * 24 * 60 * 60 * 1000);
+      startDate = new Date(baseDateStart.getTime() - 29 * 24 * 60 * 60 * 1000);
       break;
     default:
-      startDate = todayStart;
+      startDate = baseDateStart;
   }
 
   return {
@@ -52,7 +62,8 @@ export async function onRequestGet(context) {
   try {
     const url = new URL(request.url);
     const period = url.searchParams.get('period') || 'today';
-    const { start, end } = getDateRange(period);
+    const dateParam = url.searchParams.get('date');
+    const { start, end } = getDateRange(period, dateParam);
 
     const results = await env.DB.prepare(`
       SELECT * FROM mimi_records

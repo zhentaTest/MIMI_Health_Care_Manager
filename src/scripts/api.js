@@ -81,8 +81,12 @@ class ApiClient {
     });
   }
 
-  async getRecords(period = 'today') {
-    return this.request(`/records?period=${period}`);
+  async getRecords(period = 'today', date = null) {
+    let url = `/records?period=${period}`;
+    if (date) {
+      url += `&date=${date}`;
+    }
+    return this.request(url);
   }
 
   async getRecord(id) {
@@ -95,21 +99,36 @@ class ApiClient {
     });
   }
 
+  async updateRecord(id, data) {
+    return this.request(`/records/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
   // 통계 API
-  async getFoodStats(period = 'today') {
-    return this.request(`/stats/food?period=${period}`);
+  async getFoodStats(period = 'today', date = null) {
+    let url = `/stats/food?period=${period}`;
+    if (date) url += `&date=${date}`;
+    return this.request(url);
   }
 
-  async getBathroomStats(period = 'today') {
-    return this.request(`/stats/bathroom?period=${period}`);
+  async getBathroomStats(period = 'today', date = null) {
+    let url = `/stats/bathroom?period=${period}`;
+    if (date) url += `&date=${date}`;
+    return this.request(url);
   }
 
-  async getWaterStats(period = 'today') {
-    return this.request(`/stats/water?period=${period}`);
+  async getWaterStats(period = 'today', date = null) {
+    let url = `/stats/water?period=${period}`;
+    if (date) url += `&date=${date}`;
+    return this.request(url);
   }
 
-  async getMemoStats(period = 'today') {
-    return this.request(`/stats/memo?period=${period}`);
+  async getMemoStats(period = 'today', date = null) {
+    let url = `/stats/memo?period=${period}`;
+    if (date) url += `&date=${date}`;
+    return this.request(url);
   }
 }
 

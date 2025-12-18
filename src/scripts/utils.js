@@ -101,6 +101,61 @@ const Utils = {
     });
   },
 
+  // 메모 파싱 및 포맷
+  formatMemo(memoData) {
+    if (!memoData) return null;
+    try {
+      const memos = JSON.parse(memoData);
+      if (Array.isArray(memos) && memos.length > 0) {
+        return memos.join(', ');
+      }
+    } catch (e) {
+      // 문자열인 경우 그대로 반환
+      if (typeof memoData === 'string' && memoData.trim()) {
+        return memoData;
+      }
+    }
+    return null;
+  },
+
+  // 기록 상세 HTML 생성 (각 항목별 줄바꿈)
+  formatRecordDetail(record) {
+    const lines = [];
+
+    if (record.food_amount) {
+      lines.push(`🍚 사료: ${record.food_amount}개`);
+    }
+
+    if (record.water) {
+      lines.push(`💧 물: ${record.water}`);
+    }
+
+    if (record.snack_partymix) {
+      lines.push(`🍬 간식: 파티믹스 ${record.snack_partymix}개`);
+    }
+    if (record.snack_jogong) {
+      lines.push(`🍬 간식: 조공 ${record.snack_jogong}개`);
+    }
+    if (record.snack_churu) {
+      lines.push(`🍬 간식: 츄르`);
+    }
+
+    if (record.poop_count) {
+      lines.push(`💩 대변: ${record.poop_count}개`);
+    }
+
+    if (record.urine_size) {
+      lines.push(`💦 소변: ${record.urine_size}`);
+    }
+
+    const memoText = this.formatMemo(record.memo);
+    if (memoText) {
+      lines.push(`📝 메모: ${memoText}`);
+    }
+
+    return lines.length > 0 ? lines : ['기록 없음'];
+  },
+
   // 기록 요약 텍스트 생성
   formatRecordSummary(record) {
     const parts = [];
@@ -135,13 +190,9 @@ const Utils = {
       parts.push(`소변 ${record.urine_size}`);
     }
 
-    if (record.memo) {
-      try {
-        const memos = JSON.parse(record.memo);
-        if (memos.length > 0) {
-          parts.push(`메모 ${memos.length}개`);
-        }
-      } catch (e) {}
+    const memoText = this.formatMemo(record.memo);
+    if (memoText) {
+      parts.push(`메모: ${memoText}`);
     }
 
     return parts.length > 0 ? parts.join(', ') : '기록 없음';

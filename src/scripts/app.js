@@ -5,6 +5,7 @@ class MimiApp {
     this.currentScreen = 'login';
     this.currentPeriod = 'today';
     this.currentTab = 'food';
+    this.selectedDate = this.getTodayKST(); // 선택된 날짜 (YYYY-MM-DD)
 
     // 기록 폼 상태
     this.recordForm = {
@@ -24,6 +25,31 @@ class MimiApp {
     };
 
     this.init();
+  }
+
+  // 한국 시간 기준 오늘 날짜 가져오기 (YYYY-MM-DD)
+  getTodayKST() {
+    const now = new Date();
+    const kstDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    return kstDate.toISOString().split('T')[0];
+  }
+
+  // 날짜를 YYYY.MM.DD 형식으로 포맷
+  formatDateDisplay(dateStr) {
+    const [year, month, day] = dateStr.split('-');
+    return `${year}.${month}.${day}`;
+  }
+
+  // 날짜를 하루 이동 (direction: -1 또는 1)
+  shiftDate(dateStr, direction) {
+    const date = new Date(dateStr + 'T00:00:00');
+    date.setDate(date.getDate() + direction);
+    return date.toISOString().split('T')[0];
+  }
+
+  // 선택된 날짜가 오늘인지 확인
+  isToday(dateStr) {
+    return dateStr === this.getTodayKST();
   }
 
   async init() {
@@ -57,7 +83,11 @@ class MimiApp {
     document.getElementById('btn-view').addEventListener('click', () => this.showScreen('view'));
 
     // 뒤로가기 버튼
-    document.getElementById('record-back-btn').addEventListener('click', () => this.showScreen('home'));
+    document.getElementById('record-back-btn').addEventListener('click', () => {
+      this.editingRecordId = null; // 수정 모드 해제
+      clearInterval(this.timeInterval);
+      this.showScreen('home');
+    });
     document.getElementById('view-back-btn').addEventListener('click', () => this.showScreen('home'));
 
     // 기록 폼 이벤트
@@ -181,6 +211,23 @@ class MimiApp {
   }
 
   setupViewListeners() {
+    // 날짜 네비게이션
+    document.getElementById('date-prev-btn').addEventListener('click', () => {
+      this.selectedDate = this.shiftDate(this.selectedDate, -1);
+      this.updateDateNavigation();
+      this.loadCurrentTabStats();
+      this.loadDetailRecords();
+    });
+
+    document.getElementById('date-next-btn').addEventListener('click', () => {
+      if (!this.isToday(this.selectedDate)) {
+        this.selectedDate = this.shiftDate(this.selectedDate, 1);
+        this.updateDateNavigation();
+        this.loadCurrentTabStats();
+        this.loadDetailRecords();
+      }
+    });
+
     // 기간 필터
     document.querySelectorAll('.period-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -243,8 +290,18 @@ class MimiApp {
   }
 
   initRecordScreen() {
-    // 폼 초기화
-    this.resetRecordForm();
+    // 폼 초기화 (수정 모드가 아닐 때만)
+    if (!this.editingRecordId) {
+      this.resetRecordForm();
+    }
+
+    // 타이틀 업데이트
+    const headerTitle = document.querySelector('#record-screen .header h1');
+    if (this.editingRecordId) {
+      headerTitle.textContent = '기록 수정하기';
+    } else {
+      headerTitle.textContent = '미미 상태 기록하기';
+    }
 
     // 현재 시간 표시 및 업데이트
     this.updateCurrentTime();
@@ -361,12 +418,14 @@ class MimiApp {
   }
 
   async handleSaveRecord() {
-    const confirmed = await Utils.showConfirm('기록을 저장하시겠습니까?');
+    const isEditMode = !!this.editingRecordId;
+    const confirmMessage = isEditMode ? '기록을 수정하시겠습니까?' : '기록을 저장하시겠습니까?';
+    const confirmed = await Utils.showConfirm(confirmMessage);
     if (!confirmed) return;
 
     const saveBtn = document.getElementById('save-record-btn');
     saveBtn.disabled = true;
-    saveBtn.textContent = '저장 중...';
+    saveBtn.textContent = isEditMode ? '수정 중...' : '저장 중...';
 
     const data = {
       water: this.recordForm.water,
@@ -379,25 +438,32 @@ class MimiApp {
       memo: this.recordForm.memo
     };
 
-    const result = await api.createRecord(data);
+    let result;
+    if (isEditMode) {
+      result = await api.updateRecord(this.editingRecordId, data);
+    } else {
+      result = await api.createRecord(data);
+    }
 
     saveBtn.disabled = false;
     saveBtn.textContent = '저장하기';
 
     if (result.ok && result.data.success) {
-      Utils.showToast('저장 완료!', 'success');
+      Utils.showToast(isEditMode ? '수정되었습니다.' : '저장 완료!', 'success');
       clearInterval(this.timeInterval);
-      this.showScreen('home');
+      this.editingRecordId = null; // 수정 모드 해제
+      this.showScreen('view'); // 수정 후 조회 화면으로 이동
     } else {
-      Utils.showToast(result.data.message || '저장에 실패했습니다.', 'error');
+      Utils.showToast(result.data.message || (isEditMode ? '수정에 실패했습니다.' : '저장에 실패했습니다.'), 'error');
       this.updateSaveButton();
     }
   }
 
   initViewScreen() {
-    // 기간 및 탭 초기화
+    // 기간, 탭, 날짜 초기화
     this.currentPeriod = 'today';
     this.currentTab = 'food';
+    this.selectedDate = this.getTodayKST();
 
     // UI 초기화
     document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
@@ -413,8 +479,16 @@ class MimiApp {
     document.getElementById('detail-records').classList.add('hidden');
     document.getElementById('toggle-detail-btn').textContent = '상세 기록 보기';
 
+    // 날짜 네비게이션 업데이트
+    this.updateDateNavigation();
     this.updatePeriodLabels();
     this.loadCurrentTabStats();
+  }
+
+  // 날짜 네비게이션 UI 업데이트
+  updateDateNavigation() {
+    document.getElementById('current-date-display').textContent = this.formatDateDisplay(this.selectedDate);
+    document.getElementById('date-next-btn').disabled = this.isToday(this.selectedDate);
   }
 
   updatePeriodLabels() {
@@ -445,7 +519,7 @@ class MimiApp {
     const container = document.getElementById('food-stats');
     container.innerHTML = '<div class="loading">로딩 중...</div>';
 
-    const result = await api.getFoodStats(this.currentPeriod);
+    const result = await api.getFoodStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
       container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div>데이터를 불러올 수 없습니다.</div>';
@@ -483,7 +557,7 @@ class MimiApp {
     const container = document.getElementById('bathroom-stats');
     container.innerHTML = '<div class="loading">로딩 중...</div>';
 
-    const result = await api.getBathroomStats(this.currentPeriod);
+    const result = await api.getBathroomStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
       container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div>데이터를 불러올 수 없습니다.</div>';
@@ -521,7 +595,7 @@ class MimiApp {
     const container = document.getElementById('water-stats');
     container.innerHTML = '<div class="loading">로딩 중...</div>';
 
-    const result = await api.getWaterStats(this.currentPeriod);
+    const result = await api.getWaterStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
       container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div>데이터를 불러올 수 없습니다.</div>';
@@ -555,7 +629,7 @@ class MimiApp {
     const container = document.getElementById('memo-stats');
     container.innerHTML = '<div class="loading">로딩 중...</div>';
 
-    const result = await api.getMemoStats(this.currentPeriod);
+    const result = await api.getMemoStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
       container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div>데이터를 불러올 수 없습니다.</div>';
@@ -591,7 +665,7 @@ class MimiApp {
 
     container.innerHTML = '<div class="loading">로딩 중...</div>';
 
-    const result = await api.getRecords(this.currentPeriod);
+    const result = await api.getRecords(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
       container.innerHTML = '<div class="no-data">데이터를 불러올 수 없습니다.</div>';
@@ -612,10 +686,18 @@ class MimiApp {
 
       records.forEach(record => {
         const time = Utils.formatKSTTime(record.recorded_at);
-        const summary = Utils.formatRecordSummary(record);
-        html += `<div class="detail-record">
-          <span class="detail-time">${time}</span>
-          ${summary}
+        const details = Utils.formatRecordDetail(record);
+        html += `<div class="detail-record-card" data-record-id="${record.id}">
+          <div class="detail-record-header">
+            <span class="detail-time">${time}</span>
+            <div class="detail-record-actions">
+              <button class="record-action-btn edit-btn" data-id="${record.id}" title="수정">✏️</button>
+              <button class="record-action-btn delete-btn" data-id="${record.id}" title="삭제">🗑️</button>
+            </div>
+          </div>
+          <div class="detail-record-content">
+            ${details.map(line => `<div class="detail-line">${line}</div>`).join('')}
+          </div>
         </div>`;
       });
 
@@ -623,6 +705,142 @@ class MimiApp {
     }
 
     container.innerHTML = html;
+
+    // 수정/삭제 버튼 이벤트 바인딩
+    this.bindRecordActions();
+  }
+
+  // 수정/삭제 버튼 이벤트 바인딩
+  bindRecordActions() {
+    // 삭제 버튼
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const recordId = e.target.dataset.id;
+        this.handleDeleteRecord(recordId);
+      });
+    });
+
+    // 수정 버튼
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const recordId = e.target.dataset.id;
+        this.handleEditRecord(recordId);
+      });
+    });
+  }
+
+  // 기록 삭제 핸들러
+  async handleDeleteRecord(recordId) {
+    const confirmed = await Utils.showConfirm('이 기록을 삭제하시겠습니까?');
+    if (!confirmed) return;
+
+    const result = await api.deleteRecord(recordId);
+
+    if (result.ok && result.data.success) {
+      Utils.showToast('삭제되었습니다.', 'success');
+      this.loadDetailRecords();
+      this.loadCurrentTabStats();
+    } else {
+      Utils.showToast(result.data.message || '삭제에 실패했습니다.', 'error');
+    }
+  }
+
+  // 기록 수정 핸들러
+  async handleEditRecord(recordId) {
+    // 기록 데이터 가져오기
+    const result = await api.getRecord(recordId);
+    if (!result.ok || !result.data.success) {
+      Utils.showToast('기록을 불러올 수 없습니다.', 'error');
+      return;
+    }
+
+    const record = result.data.record;
+    this.editingRecordId = recordId;
+    this.showScreen('record');
+    this.populateRecordForm(record);
+  }
+
+  // 수정할 기록 데이터를 폼에 채우기
+  populateRecordForm(record) {
+    // 물
+    if (record.water) {
+      const waterRadio = document.querySelector(`input[name="water"][value="${record.water}"]`);
+      if (waterRadio) {
+        waterRadio.checked = true;
+        this.recordForm.water = record.water;
+      }
+    }
+
+    // 사료
+    if (record.food_amount) {
+      document.getElementById('food-enabled').checked = true;
+      this.recordForm.food_enabled = true;
+      this.recordForm.food_amount = record.food_amount;
+      document.getElementById('food-value').textContent = record.food_amount;
+      this.toggleStepper('food-stepper-container', true);
+    }
+
+    // 파티믹스
+    if (record.snack_partymix) {
+      document.getElementById('snack-partymix-enabled').checked = true;
+      this.recordForm.snack_partymix_enabled = true;
+      this.recordForm.snack_partymix = record.snack_partymix;
+      document.getElementById('partymix-value').textContent = record.snack_partymix;
+      this.toggleStepper('partymix-stepper', true);
+    }
+
+    // 조공
+    if (record.snack_jogong) {
+      document.getElementById('snack-jogong-enabled').checked = true;
+      this.recordForm.snack_jogong_enabled = true;
+      this.recordForm.snack_jogong = record.snack_jogong;
+      document.getElementById('jogong-value').textContent = record.snack_jogong;
+      this.toggleStepper('jogong-stepper', true);
+    }
+
+    // 츄르
+    if (record.snack_churu) {
+      document.getElementById('snack-churu-enabled').checked = true;
+      this.recordForm.snack_churu = true;
+    }
+
+    // 대변
+    if (record.poop_count) {
+      document.getElementById('poop-enabled').checked = true;
+      this.recordForm.poop_enabled = true;
+      this.recordForm.poop_count = record.poop_count;
+      document.getElementById('poop-value').textContent = record.poop_count;
+      this.toggleStepper('poop-stepper-container', true);
+    }
+
+    // 소변
+    if (record.urine_size) {
+      document.getElementById('urine-enabled').checked = true;
+      this.recordForm.urine_enabled = true;
+      this.recordForm.urine_size = record.urine_size;
+      document.getElementById('urine-group').style.opacity = '1';
+      document.getElementById('urine-group').style.pointerEvents = 'auto';
+      const urineRadio = document.querySelector(`input[name="urine"][value="${record.urine_size}"]`);
+      if (urineRadio) urineRadio.checked = true;
+    }
+
+    // 메모
+    if (record.memo) {
+      try {
+        const memos = JSON.parse(record.memo);
+        if (Array.isArray(memos)) {
+          memos.forEach(memoValue => {
+            const checkbox = document.querySelector(`#memo-options input[value="${memoValue}"]`);
+            if (checkbox) {
+              checkbox.checked = true;
+            }
+          });
+          this.recordForm.memo = memos;
+        }
+      } catch (e) {}
+    }
+
+    this.updateSaveButton();
   }
 }
 
