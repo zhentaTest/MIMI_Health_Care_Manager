@@ -546,6 +546,54 @@ body {
   padding-bottom: 40px;
 }
 
+/* 날짜 네비게이션 */
+.date-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--shadow);
+}
+
+.date-nav-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: var(--primary-color);
+  color: white;
+  font-size: 1.3rem;
+  font-weight: bold;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.date-nav-btn:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: scale(1.05);
+}
+
+.date-nav-btn:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.date-display {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 120px;
+  text-align: center;
+}
+
 /* 기간 필터 */
 .period-filter {
   display: flex;
@@ -725,6 +773,68 @@ body {
   font-weight: 600;
   color: var(--text-primary);
   margin-right: 8px;
+}
+
+/* 상세 기록 카드 스타일 */
+.detail-record-card {
+  background: var(--background);
+  border-radius: var(--radius-small);
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.detail-record-card:last-child {
+  margin-bottom: 0;
+}
+
+.detail-record-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.detail-record-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.record-action-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--surface);
+  border-radius: var(--radius-small);
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border: 1px solid var(--border-color);
+}
+
+.record-action-btn:hover {
+  background: var(--secondary-color);
+  transform: scale(1.1);
+}
+
+.record-action-btn.delete-btn:hover {
+  background: #ffebee;
+  border-color: var(--error-color);
+}
+
+.detail-record-content {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.detail-line {
+  padding: 4px 0;
+  padding-left: 8px;
 }
 
 /* 로딩 */

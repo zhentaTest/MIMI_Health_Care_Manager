@@ -7,38 +7,44 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-function getDateRange(period) {
-  const now = new Date();
-  const kstOffset = 9 * 60;
-  const kstNow = new Date(now.getTime() + kstOffset * 60 * 1000);
+function getDateRange(period, dateParam = null) {
+  let baseDate;
+  if (dateParam) {
+    baseDate = new Date(dateParam + 'T00:00:00+09:00');
+  } else {
+    const now = new Date();
+    baseDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  }
 
-  const todayStart = new Date(kstNow);
-  todayStart.setUTCHours(0, 0, 0, 0);
-  todayStart.setTime(todayStart.getTime() - kstOffset * 60 * 1000);
+  const baseDateStart = new Date(baseDate);
+  baseDateStart.setHours(0, 0, 0, 0);
+
+  const baseDateEnd = new Date(baseDate);
+  baseDateEnd.setHours(23, 59, 59, 999);
 
   let startDate;
   let days;
-  const endDate = now;
+  let endDate = baseDateEnd;
 
   switch (period) {
     case 'today':
-      startDate = todayStart;
+      startDate = baseDateStart;
       days = 1;
       break;
     case '3days':
-      startDate = new Date(todayStart.getTime() - 2 * 24 * 60 * 60 * 1000);
+      startDate = new Date(baseDateStart.getTime() - 2 * 24 * 60 * 60 * 1000);
       days = 3;
       break;
     case 'week':
-      startDate = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+      startDate = new Date(baseDateStart.getTime() - 6 * 24 * 60 * 60 * 1000);
       days = 7;
       break;
     case 'month':
-      startDate = new Date(todayStart.getTime() - 29 * 24 * 60 * 60 * 1000);
+      startDate = new Date(baseDateStart.getTime() - 29 * 24 * 60 * 60 * 1000);
       days = 30;
       break;
     default:
-      startDate = todayStart;
+      startDate = baseDateStart;
       days = 1;
   }
 
@@ -51,7 +57,8 @@ export async function onRequestGet(context) {
   try {
     const url = new URL(request.url);
     const period = url.searchParams.get('period') || 'today';
-    const { start, end, days } = getDateRange(period);
+    const dateParam = url.searchParams.get('date');
+    const { start, end, days } = getDateRange(period, dateParam);
 
     // 대변 통계
     const poopStats = await env.DB.prepare(`
