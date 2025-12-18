@@ -92,22 +92,44 @@ class MimiApp {
     document.getElementById('btn-record').addEventListener('click', () => this.showScreen('record'));
     document.getElementById('btn-view').addEventListener('click', () => this.showScreen('view'));
 
-    // 뒤로가기 버튼
-    document.getElementById('record-back-btn').addEventListener('click', () => {
-      this.editingRecordId = null; // 수정 모드 해제
+    // 뒤로가기 버튼 (Safe check for removal in new design)
+    this.safeAddEventListener('record-back-btn', 'click', () => {
+      this.editingRecordId = null;
       clearInterval(this.timeInterval);
       this.showScreen('home');
     });
-    document.getElementById('view-back-btn').addEventListener('click', () => this.showScreen('home'));
+    this.safeAddEventListener('view-back-btn', 'click', () => this.showScreen('home'));
+
+    // 하단 내비게이션
+    this.setupBottomNavListeners();
 
     // 기록 폼 이벤트
     this.setupRecordFormListeners();
 
     // 저장 버튼
-    document.getElementById('save-record-btn').addEventListener('click', () => this.handleSaveRecord());
+    this.safeAddEventListener('save-record-btn', 'click', () => this.handleSaveRecord());
 
     // 조회 화면 이벤트
     this.setupViewListeners();
+  }
+
+  // 안전한 이벤트 리스너 등록 (요소가 없어도 에러 안 남)
+  safeAddEventListener(id, event, handler) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener(event, handler);
+    }
+  }
+
+  setupBottomNavListeners() {
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.currentTarget.dataset.target; // home, record, view
+        if (target) {
+          this.showScreen(target);
+        }
+      });
+    });
   }
 
   setupRecordFormListeners() {
@@ -314,6 +336,19 @@ class MimiApp {
     } else if (screenName === 'view') {
       this.initViewScreen();
     }
+
+    // 하단 내비게이션 상태 업데이트
+    this.updateBottomNav(screenName);
+  }
+
+  updateBottomNav(screenName) {
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      if (btn.dataset.target === screenName) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
   }
 
   initRecordScreen() {
