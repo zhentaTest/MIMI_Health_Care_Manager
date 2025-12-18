@@ -48,9 +48,13 @@ class MimiApp {
 
   // 날짜를 하루 이동 (direction: -1 또는 1)
   shiftDate(dateStr, direction) {
-    const date = new Date(dateStr + 'T00:00:00');
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     date.setDate(date.getDate() + direction);
-    return date.toISOString().split('T')[0];
+    const newYear = date.getFullYear();
+    const newMonth = String(date.getMonth() + 1).padStart(2, '0');
+    const newDay = String(date.getDate()).padStart(2, '0');
+    return `${newYear}-${newMonth}-${newDay}`;
   }
 
   // 선택된 날짜가 오늘인지 확인
@@ -524,15 +528,33 @@ class MimiApp {
   updateViewModeUI() {
     const dateNav = document.getElementById('date-navigation');
     const periodFilter = document.getElementById('period-filter');
+    const tabMenu = document.querySelector('.tab-menu');
+    const tabContent = document.querySelector('.tab-content');
+    const detailSection = document.querySelector('.detail-section');
+    const detailRecords = document.getElementById('detail-records');
 
     if (this.viewMode === 'daily') {
       dateNav.classList.remove('hidden');
       periodFilter.classList.add('hidden');
+      // 날짜별 모드: 탭 메뉴 숨기고 전체 기록 표시
+      tabMenu.classList.add('hidden');
+      tabContent.classList.add('hidden');
+      detailSection.classList.remove('hidden');
+      detailRecords.classList.remove('hidden');
+      document.getElementById('toggle-detail-btn').classList.add('hidden');
       // 날짜별 모드에서는 선택된 날짜 기준으로 데이터 조회
       this.currentPeriod = 'today'; // 날짜별 모드에서는 항상 '오늘' 기준 (선택 날짜 하루)
+      this.loadDetailRecords();
     } else {
       dateNav.classList.add('hidden');
       periodFilter.classList.remove('hidden');
+      // 기간별 모드: 탭 메뉴 표시
+      tabMenu.classList.remove('hidden');
+      tabContent.classList.remove('hidden');
+      detailSection.classList.remove('hidden');
+      document.getElementById('toggle-detail-btn').classList.remove('hidden');
+      detailRecords.classList.add('hidden');
+      document.getElementById('toggle-detail-btn').textContent = '상세 기록 보기';
       // 기간별 모드에서는 선택된 기간 기준으로 데이터 조회
     }
 
@@ -716,7 +738,8 @@ class MimiApp {
 
   async loadDetailRecords() {
     const container = document.getElementById('detail-records');
-    if (container.classList.contains('hidden')) return;
+    // 날짜별 모드에서는 항상 로드, 기간별 모드에서는 hidden이 아닐 때만 로드
+    if (this.viewMode !== 'daily' && container.classList.contains('hidden')) return;
 
     container.innerHTML = '<div class="loading">로딩 중...</div>';
 
