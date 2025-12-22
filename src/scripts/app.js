@@ -5,8 +5,9 @@ class MimiApp {
     this.currentScreen = 'login';
     this.currentPeriod = 'today';
     this.currentTab = 'food';
-    this.selectedDate = this.getTodayKST(); // 선택된 날짜 (YYYY-MM-DD)
-    this.viewMode = 'daily'; // 'daily' = 날짜별 보기, 'period' = 기간별 통계
+    this.selectedDate = this.getTodayKST();
+    this.viewMode = 'daily';
+    this.editingRecordId = null;
 
     // 기록 폼 상태
     this.recordForm = {
@@ -31,7 +32,6 @@ class MimiApp {
   // 한국 시간 기준 오늘 날짜 가져오기 (YYYY-MM-DD)
   getTodayKST() {
     const now = new Date();
-    // KST (UTC+9)로 변환
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     const kstTime = new Date(utc + (9 * 60 * 60000));
     const year = kstTime.getFullYear();
@@ -63,10 +63,8 @@ class MimiApp {
   }
 
   async init() {
-    // 이벤트 리스너 설정
     this.setupEventListeners();
 
-    // 인증 상태 확인
     const isAuthenticated = await Auth.checkAuth();
     if (isAuthenticated) {
       this.showScreen('home');
@@ -74,7 +72,6 @@ class MimiApp {
       this.showScreen('login');
     }
 
-    // 로그아웃 이벤트 리스너
     window.addEventListener('auth:logout', () => {
       this.showScreen('login');
       Utils.showToast('세션이 만료되었습니다. 다시 로그인해주세요.', 'error');
@@ -92,8 +89,9 @@ class MimiApp {
     document.getElementById('btn-record').addEventListener('click', () => this.showScreen('record'));
     document.getElementById('btn-view').addEventListener('click', () => this.showScreen('view'));
 
-    // 뒤로가기 버튼 (Safe check for removal in new design)
-    this.safeAddEventListener('record-back-btn', 'click', () => {
+
+    // 뒤로가기 버튼
+    document.getElementById('record-back-btn').addEventListener('click', () => {
       this.editingRecordId = null;
       clearInterval(this.timeInterval);
       this.showScreen('home');
@@ -102,6 +100,13 @@ class MimiApp {
 
     // 하단 내비게이션
     this.setupBottomNavListeners();
+
+    // 취소 버튼 (기록 화면)
+    document.getElementById('cancel-record-btn').addEventListener('click', () => {
+      this.editingRecordId = null;
+      clearInterval(this.timeInterval);
+      this.showScreen('home');
+    });
 
     // 기록 폼 이벤트
     this.setupRecordFormListeners();
@@ -135,8 +140,8 @@ class MimiApp {
   setupRecordFormListeners() {
     // 물 라디오 버튼
     document.querySelectorAll('input[name="water"]').forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        this.recordForm.water = e.target.value;
+      radio.addEventListener('change', () => {
+        this.recordForm.water = radio.value;
         this.updateSaveButton();
       });
     });
@@ -144,28 +149,28 @@ class MimiApp {
     // 사료량
     document.getElementById('food-enabled').addEventListener('change', (e) => {
       this.recordForm.food_enabled = e.target.checked;
-      this.toggleStepper('food-stepper-container', e.target.checked);
+      this.toggleStepper('food-stepper', e.target.checked);
       this.updateSaveButton();
     });
     this.setupStepper('food', 10, 60, 5);
 
-    // 파티믹스
+    // 간식 - 파티믹스
     document.getElementById('snack-partymix-enabled').addEventListener('change', (e) => {
       this.recordForm.snack_partymix_enabled = e.target.checked;
-      this.toggleStepper('partymix-stepper', e.target.checked);
+      this.toggleStepper('snack-partymix-stepper', e.target.checked);
       this.updateSaveButton();
     });
-    this.setupStepper('partymix', 1, 20, 1);
+    this.setupStepper('snack-partymix', 1, 20, 1);
 
-    // 조공
+    // 간식 - 조공
     document.getElementById('snack-jogong-enabled').addEventListener('change', (e) => {
       this.recordForm.snack_jogong_enabled = e.target.checked;
-      this.toggleStepper('jogong-stepper', e.target.checked);
+      this.toggleStepper('snack-jogong-stepper', e.target.checked);
       this.updateSaveButton();
     });
-    this.setupStepper('jogong', 1, 20, 1);
+    this.setupStepper('snack-jogong', 1, 20, 1);
 
-    // 츄르
+    // 간식 - 츄르
     document.getElementById('snack-churu-enabled').addEventListener('change', (e) => {
       this.recordForm.snack_churu = e.target.checked;
       this.updateSaveButton();
@@ -174,7 +179,7 @@ class MimiApp {
     // 대변
     document.getElementById('poop-enabled').addEventListener('change', (e) => {
       this.recordForm.poop_enabled = e.target.checked;
-      this.toggleStepper('poop-stepper-container', e.target.checked);
+      this.toggleStepper('poop-stepper', e.target.checked);
       this.updateSaveButton();
     });
     this.setupStepper('poop', 1, 20, 1);
@@ -182,18 +187,14 @@ class MimiApp {
     // 소변
     document.getElementById('urine-enabled').addEventListener('change', (e) => {
       this.recordForm.urine_enabled = e.target.checked;
-      document.getElementById('urine-group').style.opacity = e.target.checked ? '1' : '0.5';
-      document.getElementById('urine-group').style.pointerEvents = e.target.checked ? 'auto' : 'none';
+      this.toggleRadioGroup('urine-options', e.target.checked);
       this.updateSaveButton();
     });
     document.querySelectorAll('input[name="urine"]').forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        this.recordForm.urine_size = e.target.value;
+      radio.addEventListener('change', () => {
+        this.recordForm.urine_size = radio.value;
       });
     });
-    // 초기 상태 설정
-    document.getElementById('urine-group').style.opacity = '0.5';
-    document.getElementById('urine-group').style.pointerEvents = 'none';
 
     // 메모
     document.querySelectorAll('#memo-options input[type="checkbox"]').forEach(checkbox => {
@@ -211,8 +212,8 @@ class MimiApp {
     const increaseBtn = document.getElementById(`${name}-increase`);
     const valueEl = document.getElementById(`${name}-value`);
 
-    const formKey = name === 'partymix' ? 'snack_partymix' :
-                    name === 'jogong' ? 'snack_jogong' :
+    const formKey = name === 'snack-partymix' ? 'snack_partymix' :
+                    name === 'snack-jogong' ? 'snack_jogong' :
                     name === 'poop' ? 'poop_count' :
                     `${name}_amount`;
 
@@ -233,12 +234,21 @@ class MimiApp {
     });
   }
 
-  toggleStepper(containerId, enabled) {
-    const container = document.getElementById(containerId);
+  toggleStepper(stepperId, enabled) {
+    const stepper = document.getElementById(stepperId);
     if (enabled) {
-      container.classList.add('active');
+      stepper.classList.remove('disabled');
     } else {
-      container.classList.remove('active');
+      stepper.classList.add('disabled');
+    }
+  }
+
+  toggleRadioGroup(groupId, enabled) {
+    const group = document.getElementById(groupId);
+    if (enabled) {
+      group.classList.remove('disabled');
+    } else {
+      group.classList.add('disabled');
     }
   }
 
@@ -258,7 +268,7 @@ class MimiApp {
       });
     });
 
-    // 날짜 네비게이션
+    // 날짜 네비게이션 - 버그 수정
     document.getElementById('date-prev-btn').addEventListener('click', () => {
       this.selectedDate = this.shiftDate(this.selectedDate, -1);
       this.updateDateNavigation();
@@ -268,7 +278,8 @@ class MimiApp {
     });
 
     document.getElementById('date-next-btn').addEventListener('click', () => {
-      if (!this.isToday(this.selectedDate)) {
+      const today = this.getTodayKST();
+      if (this.selectedDate < today) {
         this.selectedDate = this.shiftDate(this.selectedDate, 1);
         this.updateDateNavigation();
         this.updatePeriodLabels();
@@ -321,16 +332,13 @@ class MimiApp {
   }
 
   showScreen(screenName) {
-    // 모든 화면 숨기기
     document.querySelectorAll('.screen').forEach(screen => {
       screen.classList.add('hidden');
     });
 
-    // 요청된 화면 표시
     document.getElementById(`${screenName}-screen`).classList.remove('hidden');
     this.currentScreen = screenName;
 
-    // 화면별 초기화
     if (screenName === 'record') {
       this.initRecordScreen();
     } else if (screenName === 'view') {
@@ -352,18 +360,21 @@ class MimiApp {
   }
 
   initRecordScreen() {
-    // 폼 초기화 (수정 모드가 아닐 때만)
     if (!this.editingRecordId) {
       this.resetRecordForm();
     }
 
     // 타이틀 업데이트
-    const headerTitle = document.querySelector('#record-screen .header h1');
+    const headerTitle = document.getElementById('record-header-title');
     if (this.editingRecordId) {
       headerTitle.textContent = '기록 수정하기';
     } else {
-      headerTitle.textContent = '미미 상태 기록하기';
+      headerTitle.textContent = '기록하기';
     }
+
+    // 현재 날짜 표시
+    const today = this.getTodayKST();
+    document.getElementById('record-date').textContent = this.formatDateDisplay(today);
 
     // 현재 시간 표시 및 업데이트
     this.updateCurrentTime();
@@ -384,25 +395,22 @@ class MimiApp {
     document.getElementById('snack-churu-enabled').checked = false;
     document.getElementById('poop-enabled').checked = false;
     document.getElementById('urine-enabled').checked = false;
-
-    // 메모 체크박스 초기화
     document.querySelectorAll('#memo-options input[type="checkbox"]').forEach(cb => {
       cb.checked = false;
     });
 
     // 스텝퍼 초기화
     document.getElementById('food-value').textContent = '40';
-    document.getElementById('partymix-value').textContent = '5';
-    document.getElementById('jogong-value').textContent = '5';
+    document.getElementById('snack-partymix-value').textContent = '5';
+    document.getElementById('snack-jogong-value').textContent = '5';
     document.getElementById('poop-value').textContent = '1';
 
     // 스텝퍼 비활성화
-    this.toggleStepper('food-stepper-container', false);
-    this.toggleStepper('partymix-stepper', false);
-    this.toggleStepper('jogong-stepper', false);
-    this.toggleStepper('poop-stepper-container', false);
-    document.getElementById('urine-group').style.opacity = '0.5';
-    document.getElementById('urine-group').style.pointerEvents = 'none';
+    this.toggleStepper('food-stepper', false);
+    this.toggleStepper('snack-partymix-stepper', false);
+    this.toggleStepper('snack-jogong-stepper', false);
+    this.toggleStepper('poop-stepper', false);
+    this.toggleRadioGroup('urine-options', false);
 
     // 폼 상태 초기화
     this.recordForm = {
@@ -425,7 +433,10 @@ class MimiApp {
   }
 
   updateCurrentTime() {
-    document.getElementById('current-time').textContent = `현재 시간: ${Utils.getCurrentKSTTime()}`;
+    const timeEl = document.getElementById('current-time');
+    if (timeEl) {
+      timeEl.textContent = Utils.getCurrentKSTTime();
+    }
   }
 
   updateSaveButton() {
@@ -450,7 +461,6 @@ class MimiApp {
 
     if (!password) {
       errorEl.textContent = '비밀번호를 입력해주세요.';
-      errorEl.classList.remove('hidden');
       return;
     }
 
@@ -464,12 +474,11 @@ class MimiApp {
 
     if (result.success) {
       document.getElementById('password').value = '';
-      errorEl.classList.add('hidden');
+      errorEl.textContent = '';
       this.showScreen('home');
       Utils.showToast('로그인 성공!', 'success');
     } else {
       errorEl.textContent = result.message;
-      errorEl.classList.remove('hidden');
     }
   }
 
@@ -508,13 +517,13 @@ class MimiApp {
     }
 
     saveBtn.disabled = false;
-    saveBtn.textContent = '저장하기';
+    saveBtn.textContent = '저장';
 
     if (result.ok && result.data.success) {
       Utils.showToast(isEditMode ? '수정되었습니다.' : '저장 완료!', 'success');
       clearInterval(this.timeInterval);
-      this.editingRecordId = null; // 수정 모드 해제
-      this.showScreen('view'); // 수정 후 조회 화면으로 이동
+      this.editingRecordId = null;
+      this.showScreen('view');
     } else {
       Utils.showToast(result.data.message || (isEditMode ? '수정에 실패했습니다.' : '저장에 실패했습니다.'), 'error');
       this.updateSaveButton();
@@ -522,7 +531,6 @@ class MimiApp {
   }
 
   initViewScreen() {
-    // 모드, 기간, 탭, 날짜 초기화
     this.viewMode = 'daily';
     this.currentPeriod = 'today';
     this.currentTab = 'food';
@@ -532,10 +540,11 @@ class MimiApp {
     document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.view-mode-btn[data-mode="daily"]').classList.add('active');
 
-    // UI 초기화
+    // 기간 필터 UI 초기화
     document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.period-btn[data-period="today"]').classList.add('active');
 
+    // 탭 UI 초기화
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.tab-btn[data-tab="food"]').classList.add('active');
 
@@ -548,23 +557,21 @@ class MimiApp {
 
     // 모드별 UI 업데이트
     this.updateViewModeUI();
-    // 날짜 네비게이션 업데이트
     this.updateDateNavigation();
     this.loadCurrentTabStats();
   }
 
-  // 날짜 네비게이션 UI 업데이트
   updateDateNavigation() {
+    const today = this.getTodayKST();
     document.getElementById('current-date-display').textContent = this.formatDateDisplay(this.selectedDate);
-    document.getElementById('date-next-btn').disabled = this.isToday(this.selectedDate);
+    document.getElementById('date-next-btn').disabled = this.selectedDate >= today;
   }
 
-  // 모드별 UI 업데이트
   updateViewModeUI() {
     const dateNav = document.getElementById('date-navigation');
     const periodFilter = document.getElementById('period-filter');
-    const tabMenu = document.querySelector('.tab-menu');
-    const tabContent = document.querySelector('.tab-content');
+    const tabMenu = document.getElementById('tab-menu');
+    const tabContent = document.getElementById('tab-content');
     const detailSection = document.querySelector('.detail-section');
     const detailRecords = document.getElementById('detail-records');
 
@@ -577,8 +584,7 @@ class MimiApp {
       detailSection.classList.remove('hidden');
       detailRecords.classList.remove('hidden');
       document.getElementById('toggle-detail-btn').classList.add('hidden');
-      // 날짜별 모드에서는 선택된 날짜 기준으로 데이터 조회
-      this.currentPeriod = 'today'; // 날짜별 모드에서는 항상 '오늘' 기준 (선택 날짜 하루)
+      this.currentPeriod = 'today';
       this.loadDetailRecords();
     } else {
       dateNav.classList.add('hidden');
@@ -590,27 +596,18 @@ class MimiApp {
       document.getElementById('toggle-detail-btn').classList.remove('hidden');
       detailRecords.classList.add('hidden');
       document.getElementById('toggle-detail-btn').textContent = '상세 기록 보기';
-      // 기간별 모드에서는 선택된 기간 기준으로 데이터 조회
     }
 
     this.updatePeriodLabels();
   }
 
   updatePeriodLabels() {
-    let label;
-    if (this.viewMode === 'daily') {
-      // 날짜별 모드: 선택된 날짜 표시
-      label = this.formatDateDisplay(this.selectedDate);
-    } else {
-      // 기간별 모드: 선택된 기간 표시
-      label = Utils.getPeriodLabel(this.currentPeriod);
-    }
-    document.querySelectorAll('.period-label').forEach(el => {
-      el.textContent = label;
-    });
+    // 기간 라벨은 stats-card 내부에서 동적으로 표시
   }
 
   async loadCurrentTabStats() {
+    if (this.viewMode === 'daily') return; // 날짜별 모드에서는 통계 로드 안함
+
     switch (this.currentTab) {
       case 'food':
         await this.loadFoodStats();
@@ -634,34 +631,39 @@ class MimiApp {
     const result = await api.getFoodStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div>데이터를 불러올 수 없습니다.</div>';
+      container.innerHTML = '<p class="no-data">데이터를 불러올 수 없습니다.</p>';
       return;
     }
 
     const stats = result.data.stats;
 
     if (stats.food.count === 0 && stats.snacks.partymix === 0 && stats.snacks.jogong === 0 && stats.snacks.churu === 0) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div>기록이 없습니다.</div>';
+      container.innerHTML = '<p class="no-data">기록이 없습니다.</p>';
       return;
     }
 
     container.innerHTML = `
       <div class="stats-item">
         <span class="stats-label">🍚 사료</span>
-        <span class="stats-value">총 ${stats.food.total}개 (${stats.food.count}회 기록)</span>
+        <span class="stats-value">총 ${stats.food.total}g</span>
       </div>
       ${stats.food.count > 0 ? `
       <div class="stats-subitem">
-        평균: ${stats.food.average}개/회
+        <span>기록 횟수</span>
+        <span>${stats.food.count}회</span>
+      </div>
+      <div class="stats-subitem">
+        <span>평균</span>
+        <span>${stats.food.average}g/회</span>
       </div>
       ` : ''}
       <div class="stats-item">
         <span class="stats-label">🍬 간식</span>
         <span class="stats-value"></span>
       </div>
-      <div class="stats-subitem">파티믹스: ${stats.snacks.partymix}개</div>
-      <div class="stats-subitem">조공: ${stats.snacks.jogong}개</div>
-      <div class="stats-subitem">츄르: ${stats.snacks.churu}회</div>
+      <div class="stats-subitem"><span>파티믹스</span><span>${stats.snacks.partymix}개</span></div>
+      <div class="stats-subitem"><span>조공</span><span>${stats.snacks.jogong}개</span></div>
+      <div class="stats-subitem"><span>츄르</span><span>${stats.snacks.churu}회</span></div>
     `;
   }
 
@@ -672,34 +674,58 @@ class MimiApp {
     const result = await api.getBathroomStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div>데이터를 불러올 수 없습니다.</div>';
+      container.innerHTML = '<p class="no-data">데이터를 불러올 수 없습니다.</p>';
       return;
     }
 
     const stats = result.data.stats;
 
     if (stats.poop.total === 0 && stats.urine.total === 0) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div>기록이 없습니다.</div>';
+      container.innerHTML = '<p class="no-data">기록이 없습니다.</p>';
       return;
     }
+
+    // 프로그레스 바 계산
+    const maxUrine = Math.max(stats.urine.large, stats.urine.medium, stats.urine.small, 1);
 
     container.innerHTML = `
       <div class="stats-item">
         <span class="stats-label">💩 대변</span>
-        <span class="stats-value">총 ${stats.poop.total}개</span>
+        <span class="stats-value">총 ${stats.poop.total}회</span>
       </div>
       ${stats.poop.records > 0 ? `
       <div class="stats-subitem">
-        일평균: ${stats.poop.dailyAverage}개
+        <span>일평균</span>
+        <span>${stats.poop.dailyAverage}회</span>
       </div>
       ` : ''}
       <div class="stats-item">
-        <span class="stats-label">💦 소변</span>
+        <span class="stats-label">💦 소변 (감자 크기)</span>
         <span class="stats-value">총 ${stats.urine.total}회</span>
       </div>
-      <div class="stats-subitem">대: ${stats.urine.large}회</div>
-      <div class="stats-subitem">중: ${stats.urine.medium}회</div>
-      <div class="stats-subitem">소: ${stats.urine.small}회</div>
+      <div class="progress-bar-container">
+        <div class="progress-item">
+          <span class="progress-label">대</span>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" style="width: ${(stats.urine.large / maxUrine) * 100}%"></div>
+          </div>
+          <span class="progress-value">${stats.urine.large}회</span>
+        </div>
+        <div class="progress-item">
+          <span class="progress-label">중</span>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" style="width: ${(stats.urine.medium / maxUrine) * 100}%"></div>
+          </div>
+          <span class="progress-value">${stats.urine.medium}회</span>
+        </div>
+        <div class="progress-item">
+          <span class="progress-label">소</span>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" style="width: ${(stats.urine.small / maxUrine) * 100}%"></div>
+          </div>
+          <span class="progress-value">${stats.urine.small}회</span>
+        </div>
+      </div>
     `;
   }
 
@@ -710,14 +736,14 @@ class MimiApp {
     const result = await api.getWaterStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div>데이터를 불러올 수 없습니다.</div>';
+      container.innerHTML = '<p class="no-data">데이터를 불러올 수 없습니다.</p>';
       return;
     }
 
     const stats = result.data.stats;
 
     if (stats.total === 0) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div>기록이 없습니다.</div>';
+      container.innerHTML = '<p class="no-data">기록이 없습니다.</p>';
       return;
     }
 
@@ -744,36 +770,35 @@ class MimiApp {
     const result = await api.getMemoStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div>데이터를 불러올 수 없습니다.</div>';
+      container.innerHTML = '<p class="no-data">데이터를 불러올 수 없습니다.</p>';
       return;
     }
 
     const stats = result.data.stats;
 
     if (stats.totalRecords === 0 || stats.memos.length === 0) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div>기록이 없습니다.</div>';
+      container.innerHTML = '<p class="no-data">기록이 없습니다.</p>';
       return;
     }
-
-    const memoHtml = stats.memos.map(m => `
-      <div class="stats-item">
-        <span class="stats-label">${m.item}</span>
-        <span class="stats-value">${m.count}회</span>
-      </div>
-    `).join('');
 
     container.innerHTML = `
       <div class="stats-item">
         <span class="stats-label">📝 기록된 메모</span>
         <span class="stats-value">${stats.totalRecords}건</span>
       </div>
-      ${memoHtml}
+      <div class="memo-list">
+        ${stats.memos.map(m => `
+          <div class="memo-item">
+            <span class="memo-text">${m.item}</span>
+            <span class="memo-count">${m.count}회</span>
+          </div>
+        `).join('')}
+      </div>
     `;
   }
 
   async loadDetailRecords() {
     const container = document.getElementById('detail-records');
-    // 날짜별 모드에서는 항상 로드, 기간별 모드에서는 hidden이 아닐 때만 로드
     if (this.viewMode !== 'daily' && container.classList.contains('hidden')) return;
 
     container.innerHTML = '<div class="loading">로딩 중...</div>';
@@ -781,12 +806,12 @@ class MimiApp {
     const result = await api.getRecords(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
-      container.innerHTML = '<div class="no-data">데이터를 불러올 수 없습니다.</div>';
+      container.innerHTML = '<p class="no-data">데이터를 불러올 수 없습니다.</p>';
       return;
     }
 
     if (result.data.records.length === 0) {
-      container.innerHTML = '<div class="no-data">기록이 없습니다.</div>';
+      container.innerHTML = '<p class="no-data">기록이 없습니다.</p>';
       return;
     }
 
@@ -800,16 +825,14 @@ class MimiApp {
       records.forEach(record => {
         const time = Utils.formatKSTTime(record.recorded_at);
         const details = Utils.formatRecordDetail(record);
-        html += `<div class="detail-record-card" data-record-id="${record.id}">
-          <div class="detail-record-header">
-            <span class="detail-time">${time}</span>
-            <div class="detail-record-actions">
-              <button class="record-action-btn edit-btn" data-id="${record.id}" title="수정">✏️</button>
-              <button class="record-action-btn delete-btn" data-id="${record.id}" title="삭제">🗑️</button>
-            </div>
-          </div>
-          <div class="detail-record-content">
+        html += `<div class="detail-record" data-record-id="${record.id}">
+          <div class="detail-time">${time}</div>
+          <div class="detail-content">
             ${details.map(line => `<div class="detail-line">${line}</div>`).join('')}
+          </div>
+          <div class="detail-actions">
+            <button class="edit-btn" data-id="${record.id}">수정</button>
+            <button class="delete-btn" data-id="${record.id}">삭제</button>
           </div>
         </div>`;
       });
@@ -818,12 +841,9 @@ class MimiApp {
     }
 
     container.innerHTML = html;
-
-    // 수정/삭제 버튼 이벤트 바인딩
     this.bindRecordActions();
   }
 
-  // 수정/삭제 버튼 이벤트 바인딩
   bindRecordActions() {
     // 삭제 버튼
     document.querySelectorAll('.delete-btn').forEach(btn => {
@@ -842,7 +862,6 @@ class MimiApp {
     });
   }
 
-  // 기록 삭제 핸들러
   async handleDeleteRecord(recordId) {
     const confirmed = await Utils.showConfirm('이 기록을 삭제하시겠습니까?');
     if (!confirmed) return;
@@ -858,9 +877,7 @@ class MimiApp {
     }
   }
 
-  // 기록 수정 핸들러
   async handleEditRecord(recordId) {
-    // 기록 데이터 가져오기
     const result = await api.getRecord(recordId);
     if (!result.ok || !result.data.success) {
       Utils.showToast('기록을 불러올 수 없습니다.', 'error');
@@ -873,7 +890,6 @@ class MimiApp {
     this.populateRecordForm(record);
   }
 
-  // 수정할 기록 데이터를 폼에 채우기
   populateRecordForm(record) {
     // 물
     if (record.water) {
@@ -890,7 +906,7 @@ class MimiApp {
       this.recordForm.food_enabled = true;
       this.recordForm.food_amount = record.food_amount;
       document.getElementById('food-value').textContent = record.food_amount;
-      this.toggleStepper('food-stepper-container', true);
+      this.toggleStepper('food-stepper', true);
     }
 
     // 파티믹스
@@ -898,8 +914,8 @@ class MimiApp {
       document.getElementById('snack-partymix-enabled').checked = true;
       this.recordForm.snack_partymix_enabled = true;
       this.recordForm.snack_partymix = record.snack_partymix;
-      document.getElementById('partymix-value').textContent = record.snack_partymix;
-      this.toggleStepper('partymix-stepper', true);
+      document.getElementById('snack-partymix-value').textContent = record.snack_partymix;
+      this.toggleStepper('snack-partymix-stepper', true);
     }
 
     // 조공
@@ -907,8 +923,8 @@ class MimiApp {
       document.getElementById('snack-jogong-enabled').checked = true;
       this.recordForm.snack_jogong_enabled = true;
       this.recordForm.snack_jogong = record.snack_jogong;
-      document.getElementById('jogong-value').textContent = record.snack_jogong;
-      this.toggleStepper('jogong-stepper', true);
+      document.getElementById('snack-jogong-value').textContent = record.snack_jogong;
+      this.toggleStepper('snack-jogong-stepper', true);
     }
 
     // 츄르
@@ -923,7 +939,7 @@ class MimiApp {
       this.recordForm.poop_enabled = true;
       this.recordForm.poop_count = record.poop_count;
       document.getElementById('poop-value').textContent = record.poop_count;
-      this.toggleStepper('poop-stepper-container', true);
+      this.toggleStepper('poop-stepper', true);
     }
 
     // 소변
@@ -931,8 +947,7 @@ class MimiApp {
       document.getElementById('urine-enabled').checked = true;
       this.recordForm.urine_enabled = true;
       this.recordForm.urine_size = record.urine_size;
-      document.getElementById('urine-group').style.opacity = '1';
-      document.getElementById('urine-group').style.pointerEvents = 'auto';
+      this.toggleRadioGroup('urine-options', true);
       const urineRadio = document.querySelector(`input[name="urine"][value="${record.urine_size}"]`);
       if (urineRadio) urineRadio.checked = true;
     }
@@ -944,9 +959,7 @@ class MimiApp {
         if (Array.isArray(memos)) {
           memos.forEach(memoValue => {
             const checkbox = document.querySelector(`#memo-options input[value="${memoValue}"]`);
-            if (checkbox) {
-              checkbox.checked = true;
-            }
+            if (checkbox) checkbox.checked = true;
           });
           this.recordForm.memo = memos;
         }
