@@ -1,3 +1,4 @@
+pages_build_output_dir = "src"
 name = "mimi-diet-tracker"
 compatibility_date = "2024-01-01"
 
@@ -8,7 +9,7 @@ compatibility_date = "2024-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "mimi-db"
-database_id = "YOUR_DATABASE_ID_HERE"
+database_id = "6b66ba98-0e5b-4b7a-8af6-48bc9e70224a"
 
 # Uncomment and configure KV for rate limiting
 # [[kv_namespaces]]
