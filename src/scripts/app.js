@@ -32,11 +32,11 @@ class MimiApp {
   // 한국 시간 기준 오늘 날짜 가져오기 (YYYY-MM-DD)
   getTodayKST() {
     const now = new Date();
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const kstTime = new Date(utc + (9 * 60 * 60000));
-    const year = kstTime.getFullYear();
-    const month = String(kstTime.getMonth() + 1).padStart(2, '0');
-    const day = String(kstTime.getDate()).padStart(2, '0');
+
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+
     return `${year}-${month}-${day}`;
   }
 
@@ -570,32 +570,36 @@ class MimiApp {
   updateViewModeUI() {
     const dateNav = document.getElementById('date-navigation');
     const periodFilter = document.getElementById('period-filter');
-    const tabMenu = document.getElementById('tab-menu');
-    const tabContent = document.getElementById('tab-content');
+
+    const tabMenu = document.querySelector('.tab-menu');
+    const tabContent = document.querySelector('.tab-content');
     const detailSection = document.querySelector('.detail-section');
-    const detailRecords = document.getElementById('detail-records');
 
     if (this.viewMode === 'daily') {
       dateNav.classList.remove('hidden');
       periodFilter.classList.add('hidden');
-      // 날짜별 모드: 탭 메뉴 숨기고 전체 기록 표시
+
+      // 날짜별 모드에서는 탭 메뉴 숨기고 상세 기록 바로 표시
       tabMenu.classList.add('hidden');
       tabContent.classList.add('hidden');
       detailSection.classList.remove('hidden');
-      detailRecords.classList.remove('hidden');
       document.getElementById('toggle-detail-btn').classList.add('hidden');
-      this.currentPeriod = 'today';
+      document.getElementById('detail-records').classList.remove('hidden');
+      // 날짜별 모드에서는 선택된 날짜 기준으로 데이터 조회
+      this.currentPeriod = 'today'; // 날짜별 모드에서는 항상 '오늘' 기준 (선택 날짜 하루)
       this.loadDetailRecords();
     } else {
       dateNav.classList.add('hidden');
       periodFilter.classList.remove('hidden');
-      // 기간별 모드: 탭 메뉴 표시
+
+      // 기간별 모드에서는 탭 메뉴 표시
       tabMenu.classList.remove('hidden');
       tabContent.classList.remove('hidden');
       detailSection.classList.remove('hidden');
       document.getElementById('toggle-detail-btn').classList.remove('hidden');
-      detailRecords.classList.add('hidden');
+      document.getElementById('detail-records').classList.add('hidden');
       document.getElementById('toggle-detail-btn').textContent = '상세 기록 보기';
+      // 기간별 모드에서는 선택된 기간 기준으로 데이터 조회
     }
 
     this.updatePeriodLabels();
