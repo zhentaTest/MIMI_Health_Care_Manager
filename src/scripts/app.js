@@ -1,4 +1,4 @@
-// 미미 식단 관리 - 메인 앱 로직 (Stitch 디자인 업그레이드)
+// 미미 식단 관리 - 메인 앱 로직
 
 class MimiApp {
   constructor() {
@@ -8,7 +8,6 @@ class MimiApp {
     this.selectedDate = this.getTodayKST();
     this.viewMode = 'daily';
     this.editingRecordId = null;
-    this.deleteTargetId = null;
 
     // 기록 폼 상태
     this.recordForm = {
@@ -113,85 +112,51 @@ class MimiApp {
 
     // 조회 화면 이벤트
     this.setupViewListeners();
-
-    // 삭제 모달 이벤트
-    this.setupDeleteModalListeners();
-
-    // FAB 버튼
-    const fabBtn = document.getElementById('fab-add');
-    if (fabBtn) {
-      fabBtn.addEventListener('click', () => this.showScreen('record'));
-    }
-
-    // 홈 화면 네비게이션
-    this.setupHomeNavigation();
-  }
-
-  setupHomeNavigation() {
-    // 홈 화면 하단 네비게이션 버튼들
-    const homeNavItems = document.querySelectorAll('#home-screen .nav-item');
-    homeNavItems.forEach((item, index) => {
-      item.addEventListener('click', () => {
-        if (index === 0) { // 홈
-          // 이미 홈
-        } else if (index === 1) { // 달력
-          Utils.showToast('달력 기능은 준비 중입니다.', 'default');
-        } else if (index === 2) { // 커뮤니티
-          Utils.showToast('커뮤니티 기능은 준비 중입니다.', 'default');
-        } else if (index === 3) { // 마이
-          this.handleLogout();
-        }
-      });
-    });
-
-    // 뷰 화면 하단 네비게이션 버튼들
-    const viewNavItems = document.querySelectorAll('#view-screen .nav-item');
-    viewNavItems.forEach((item, index) => {
-      item.addEventListener('click', () => {
-        if (index === 0) { // 홈
-          this.showScreen('home');
-        } else if (index === 1) { // 통계
-          // 이미 통계
-        } else if (index === 2) { // 달력
-          Utils.showToast('달력 기능은 준비 중입니다.', 'default');
-        } else if (index === 3) { // 설정
-          this.handleLogout();
-        }
-      });
-    });
   }
 
   setupRecordFormListeners() {
-    // 물 라디오 버튼 - 새 UI 스타일
-    document.querySelectorAll('#water-group .radio-label').forEach(label => {
-      label.addEventListener('click', () => {
-        const input = label.querySelector('input[type="radio"]');
-        if (input) {
-          input.checked = true;
-          this.recordForm.water = input.value;
-          // UI 업데이트
-          document.querySelectorAll('#water-group .radio-label').forEach(l => l.classList.remove('selected'));
-          label.classList.add('selected');
-          this.updateSaveButton();
-        }
+    // 물 라디오 버튼
+    document.querySelectorAll('input[name="water"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        this.recordForm.water = radio.value;
+        this.updateSaveButton();
       });
     });
 
     // 사료량
     document.getElementById('food-enabled').addEventListener('change', (e) => {
       this.recordForm.food_enabled = e.target.checked;
-      this.toggleStepper('food-stepper-container', e.target.checked);
+      this.toggleStepper('food-stepper', e.target.checked);
       this.updateSaveButton();
     });
     this.setupStepper('food', 10, 60, 5);
 
-    // 간식 칩 버튼들
-    this.setupSnackChips();
+    // 간식 - 파티믹스
+    document.getElementById('snack-partymix-enabled').addEventListener('change', (e) => {
+      this.recordForm.snack_partymix_enabled = e.target.checked;
+      this.toggleStepper('snack-partymix-stepper', e.target.checked);
+      this.updateSaveButton();
+    });
+    this.setupStepper('snack-partymix', 1, 20, 1);
+
+    // 간식 - 조공
+    document.getElementById('snack-jogong-enabled').addEventListener('change', (e) => {
+      this.recordForm.snack_jogong_enabled = e.target.checked;
+      this.toggleStepper('snack-jogong-stepper', e.target.checked);
+      this.updateSaveButton();
+    });
+    this.setupStepper('snack-jogong', 1, 20, 1);
+
+    // 간식 - 츄르
+    document.getElementById('snack-churu-enabled').addEventListener('change', (e) => {
+      this.recordForm.snack_churu = e.target.checked;
+      this.updateSaveButton();
+    });
 
     // 대변
     document.getElementById('poop-enabled').addEventListener('change', (e) => {
       this.recordForm.poop_enabled = e.target.checked;
-      this.toggleStepper('poop-stepper-container', e.target.checked);
+      this.toggleStepper('poop-stepper', e.target.checked);
       this.updateSaveButton();
     });
     this.setupStepper('poop', 1, 20, 1);
@@ -199,103 +164,24 @@ class MimiApp {
     // 소변
     document.getElementById('urine-enabled').addEventListener('change', (e) => {
       this.recordForm.urine_enabled = e.target.checked;
-      const urineGroup = document.getElementById('urine-group');
-      urineGroup.style.opacity = e.target.checked ? '1' : '0.5';
-      urineGroup.style.pointerEvents = e.target.checked ? 'auto' : 'none';
+      this.toggleRadioGroup('urine-options', e.target.checked);
       this.updateSaveButton();
     });
-
-    // 소변 라디오 버튼 - 새 UI 스타일
-    document.querySelectorAll('#urine-group .radio-label').forEach(label => {
-      label.addEventListener('click', () => {
-        if (!this.recordForm.urine_enabled) return;
-        const input = label.querySelector('input[type="radio"]');
-        if (input) {
-          input.checked = true;
-          this.recordForm.urine_size = input.value;
-          document.querySelectorAll('#urine-group .radio-label').forEach(l => l.classList.remove('selected'));
-          label.classList.add('selected');
-        }
+    document.querySelectorAll('input[name="urine"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        this.recordForm.urine_size = radio.value;
       });
     });
 
-    // 메모 - 새 UI 스타일
-    document.querySelectorAll('#memo-options .memo-label').forEach(label => {
-      label.addEventListener('click', () => {
-        const checkbox = label.querySelector('input[type="checkbox"]');
-        if (checkbox) {
-          checkbox.checked = !checkbox.checked;
-          label.classList.toggle('selected', checkbox.checked);
-          this.recordForm.memo = Array.from(
-            document.querySelectorAll('#memo-options input[type="checkbox"]:checked')
-          ).map(cb => cb.value);
-          this.updateSaveButton();
-        }
+    // 메모
+    document.querySelectorAll('#memo-options input[type="checkbox"]').forEach(checkbox => {
+      checkbox.addEventListener('change', () => {
+        this.recordForm.memo = Array.from(
+          document.querySelectorAll('#memo-options input[type="checkbox"]:checked')
+        ).map(cb => cb.value);
+        this.updateSaveButton();
       });
     });
-  }
-
-  setupSnackChips() {
-    const churuChip = document.getElementById('snack-churu-chip');
-    const partymixChip = document.getElementById('snack-partymix-chip');
-    const jogongChip = document.getElementById('snack-jogong-chip');
-    const snackDetails = document.getElementById('snack-details');
-    const partymixRow = document.getElementById('partymix-row');
-    const jogongRow = document.getElementById('jogong-row');
-
-    // 츄르 칩
-    churuChip.addEventListener('click', () => {
-      churuChip.classList.toggle('selected');
-      this.recordForm.snack_churu = churuChip.classList.contains('selected');
-      document.getElementById('snack-churu-enabled').checked = this.recordForm.snack_churu;
-      this.updateSaveButton();
-    });
-
-    // 파티믹스 칩
-    partymixChip.addEventListener('click', () => {
-      partymixChip.classList.toggle('selected');
-      this.recordForm.snack_partymix_enabled = partymixChip.classList.contains('selected');
-      document.getElementById('snack-partymix-enabled').checked = this.recordForm.snack_partymix_enabled;
-
-      if (this.recordForm.snack_partymix_enabled) {
-        snackDetails.classList.remove('hidden');
-        partymixRow.classList.remove('hidden');
-      } else {
-        partymixRow.classList.add('hidden');
-        this.checkSnackDetailsVisibility();
-      }
-      this.updateSaveButton();
-    });
-
-    // 조공 칩
-    jogongChip.addEventListener('click', () => {
-      jogongChip.classList.toggle('selected');
-      this.recordForm.snack_jogong_enabled = jogongChip.classList.contains('selected');
-      document.getElementById('snack-jogong-enabled').checked = this.recordForm.snack_jogong_enabled;
-
-      if (this.recordForm.snack_jogong_enabled) {
-        snackDetails.classList.remove('hidden');
-        jogongRow.classList.remove('hidden');
-      } else {
-        jogongRow.classList.add('hidden');
-        this.checkSnackDetailsVisibility();
-      }
-      this.updateSaveButton();
-    });
-
-    // 스텝퍼 설정
-    this.setupStepper('partymix', 1, 20, 1);
-    this.setupStepper('jogong', 1, 20, 1);
-  }
-
-  checkSnackDetailsVisibility() {
-    const snackDetails = document.getElementById('snack-details');
-    const partymixRow = document.getElementById('partymix-row');
-    const jogongRow = document.getElementById('jogong-row');
-
-    if (partymixRow.classList.contains('hidden') && jogongRow.classList.contains('hidden')) {
-      snackDetails.classList.add('hidden');
-    }
   }
 
   setupStepper(name, min, max, step) {
@@ -303,8 +189,8 @@ class MimiApp {
     const increaseBtn = document.getElementById(`${name}-increase`);
     const valueEl = document.getElementById(`${name}-value`);
 
-    const formKey = name === 'partymix' ? 'snack_partymix' :
-                    name === 'jogong' ? 'snack_jogong' :
+    const formKey = name === 'snack-partymix' ? 'snack_partymix' :
+                    name === 'snack-jogong' ? 'snack_jogong' :
                     name === 'poop' ? 'poop_count' :
                     `${name}_amount`;
 
@@ -325,12 +211,21 @@ class MimiApp {
     });
   }
 
-  toggleStepper(containerId, enabled) {
-    const container = document.getElementById(containerId);
+  toggleStepper(stepperId, enabled) {
+    const stepper = document.getElementById(stepperId);
     if (enabled) {
-      container.classList.add('active');
+      stepper.classList.remove('disabled');
     } else {
-      container.classList.remove('active');
+      stepper.classList.add('disabled');
+    }
+  }
+
+  toggleRadioGroup(groupId, enabled) {
+    const group = document.getElementById(groupId);
+    if (enabled) {
+      group.classList.remove('disabled');
+    } else {
+      group.classList.add('disabled');
     }
   }
 
@@ -413,21 +308,6 @@ class MimiApp {
     });
   }
 
-  setupDeleteModalListeners() {
-    document.getElementById('delete-cancel').addEventListener('click', () => {
-      document.getElementById('delete-modal').classList.add('hidden');
-      this.deleteTargetId = null;
-    });
-
-    document.getElementById('delete-ok').addEventListener('click', async () => {
-      if (this.deleteTargetId) {
-        await this.confirmDeleteRecord(this.deleteTargetId);
-      }
-      document.getElementById('delete-modal').classList.add('hidden');
-      this.deleteTargetId = null;
-    });
-  }
-
   showScreen(screenName) {
     document.querySelectorAll('.screen').forEach(screen => {
       screen.classList.add('hidden');
@@ -468,46 +348,33 @@ class MimiApp {
   resetRecordForm() {
     // 라디오 버튼 초기화
     document.querySelectorAll('input[name="water"]').forEach(r => r.checked = false);
-    document.querySelectorAll('#water-group .radio-label').forEach(l => l.classList.remove('selected'));
-
     document.querySelectorAll('input[name="urine"]').forEach(r => {
       r.checked = r.value === '중';
-    });
-    document.querySelectorAll('#urine-group .radio-label').forEach(l => {
-      l.classList.toggle('selected', l.dataset.value === '중');
     });
 
     // 체크박스 초기화
     document.getElementById('food-enabled').checked = false;
-    document.getElementById('poop-enabled').checked = false;
-    document.getElementById('urine-enabled').checked = false;
-
-    // 간식 칩 초기화
-    document.querySelectorAll('#snack-chips .chip').forEach(chip => chip.classList.remove('selected'));
     document.getElementById('snack-partymix-enabled').checked = false;
     document.getElementById('snack-jogong-enabled').checked = false;
     document.getElementById('snack-churu-enabled').checked = false;
-    document.getElementById('snack-details').classList.add('hidden');
-    document.getElementById('partymix-row').classList.add('hidden');
-    document.getElementById('jogong-row').classList.add('hidden');
-
-    // 메모 체크박스 초기화
+    document.getElementById('poop-enabled').checked = false;
+    document.getElementById('urine-enabled').checked = false;
     document.querySelectorAll('#memo-options input[type="checkbox"]').forEach(cb => {
       cb.checked = false;
     });
-    document.querySelectorAll('#memo-options .memo-label').forEach(l => l.classList.remove('selected'));
 
     // 스텝퍼 초기화
     document.getElementById('food-value').textContent = '40';
-    document.getElementById('partymix-value').textContent = '5';
-    document.getElementById('jogong-value').textContent = '5';
+    document.getElementById('snack-partymix-value').textContent = '5';
+    document.getElementById('snack-jogong-value').textContent = '5';
     document.getElementById('poop-value').textContent = '1';
 
     // 스텝퍼 비활성화
-    this.toggleStepper('food-stepper-container', false);
-    this.toggleStepper('poop-stepper-container', false);
-    document.getElementById('urine-group').style.opacity = '0.5';
-    document.getElementById('urine-group').style.pointerEvents = 'none';
+    this.toggleStepper('food-stepper', false);
+    this.toggleStepper('snack-partymix-stepper', false);
+    this.toggleStepper('snack-jogong-stepper', false);
+    this.toggleStepper('poop-stepper', false);
+    this.toggleRadioGroup('urine-options', false);
 
     // 폼 상태 초기화
     this.recordForm = {
@@ -553,32 +420,29 @@ class MimiApp {
     e.preventDefault();
 
     const password = document.getElementById('password').value;
-    const errorBox = document.getElementById('login-error-box');
-    const errorText = document.getElementById('login-error');
+    const errorEl = document.getElementById('login-error');
     const loginBtn = document.getElementById('login-btn');
 
     if (!password) {
-      errorText.textContent = '비밀번호를 입력해주세요.';
-      errorBox.classList.remove('hidden');
+      errorEl.textContent = '비밀번호를 입력해주세요.';
       return;
     }
 
     loginBtn.disabled = true;
-    loginBtn.innerHTML = '로그인 중... <span>→</span>';
+    loginBtn.textContent = '로그인 중...';
 
     const result = await Auth.login(password);
 
     loginBtn.disabled = false;
-    loginBtn.innerHTML = '로그인 <span>→</span>';
+    loginBtn.textContent = '로그인';
 
     if (result.success) {
       document.getElementById('password').value = '';
-      errorBox.classList.add('hidden');
+      errorEl.textContent = '';
       this.showScreen('home');
       Utils.showToast('로그인 성공!', 'success');
     } else {
-      errorText.textContent = result.message;
-      errorBox.classList.remove('hidden');
+      errorEl.textContent = result.message;
     }
   }
 
@@ -726,19 +590,19 @@ class MimiApp {
 
   async loadFoodStats() {
     const container = document.getElementById('food-stats');
-    container.innerHTML = '<div class="loading">로딩 중</div>';
+    container.innerHTML = '<div class="loading">로딩 중...</div>';
 
     const result = await api.getFoodStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div><p class="no-data-text">데이터를 불러올 수 없습니다.</p></div>';
+      container.innerHTML = '<p class="no-data">데이터를 불러올 수 없습니다.</p>';
       return;
     }
 
     const stats = result.data.stats;
 
     if (stats.food.count === 0 && stats.snacks.partymix === 0 && stats.snacks.jogong === 0 && stats.snacks.churu === 0) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><p class="no-data-text">기록이 없습니다.</p></div>';
+      container.innerHTML = '<p class="no-data">기록이 없습니다.</p>';
       return;
     }
 
@@ -769,19 +633,19 @@ class MimiApp {
 
   async loadBathroomStats() {
     const container = document.getElementById('bathroom-stats');
-    container.innerHTML = '<div class="loading">로딩 중</div>';
+    container.innerHTML = '<div class="loading">로딩 중...</div>';
 
     const result = await api.getBathroomStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div><p class="no-data-text">데이터를 불러올 수 없습니다.</p></div>';
+      container.innerHTML = '<p class="no-data">데이터를 불러올 수 없습니다.</p>';
       return;
     }
 
     const stats = result.data.stats;
 
     if (stats.poop.total === 0 && stats.urine.total === 0) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><p class="no-data-text">기록이 없습니다.</p></div>';
+      container.innerHTML = '<p class="no-data">기록이 없습니다.</p>';
       return;
     }
 
@@ -831,19 +695,19 @@ class MimiApp {
 
   async loadWaterStats() {
     const container = document.getElementById('water-stats');
-    container.innerHTML = '<div class="loading">로딩 중</div>';
+    container.innerHTML = '<div class="loading">로딩 중...</div>';
 
     const result = await api.getWaterStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div><p class="no-data-text">데이터를 불러올 수 없습니다.</p></div>';
+      container.innerHTML = '<p class="no-data">데이터를 불러올 수 없습니다.</p>';
       return;
     }
 
     const stats = result.data.stats;
 
     if (stats.total === 0) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><p class="no-data-text">기록이 없습니다.</p></div>';
+      container.innerHTML = '<p class="no-data">기록이 없습니다.</p>';
       return;
     }
 
@@ -865,41 +729,34 @@ class MimiApp {
 
   async loadMemoStats() {
     const container = document.getElementById('memo-stats');
-    container.innerHTML = '<div class="loading">로딩 중</div>';
+    container.innerHTML = '<div class="loading">로딩 중...</div>';
 
     const result = await api.getMemoStats(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div><p class="no-data-text">데이터를 불러올 수 없습니다.</p></div>';
+      container.innerHTML = '<p class="no-data">데이터를 불러올 수 없습니다.</p>';
       return;
     }
 
     const stats = result.data.stats;
 
     if (stats.totalRecords === 0 || stats.memos.length === 0) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><p class="no-data-text">기록이 없습니다.</p></div>';
+      container.innerHTML = '<p class="no-data">기록이 없습니다.</p>';
       return;
     }
-
-    // 특이사항을 알림 카드로 표시
-    const alertCards = stats.memos.map(m => {
-      const isWarning = m.item.includes('구토') || m.item.includes('앙탈') || m.item.includes('울어요') || m.item.includes('안 먹어요');
-      return `
-        <div class="alert-card ${isWarning ? 'warning' : 'success'}">
-          <span class="alert-emoji">${m.item.split(' ').pop()}</span>
-          <span>${m.item.replace(/\s*\S+$/, '')}</span>
-          <span class="alert-count">${m.count}회</span>
-        </div>
-      `;
-    }).join('');
 
     container.innerHTML = `
       <div class="stats-item">
         <span class="stats-label">📝 기록된 메모</span>
         <span class="stats-value">${stats.totalRecords}건</span>
       </div>
-      <div class="alert-cards" style="margin-top: 16px;">
-        ${alertCards}
+      <div class="memo-list">
+        ${stats.memos.map(m => `
+          <div class="memo-item">
+            <span class="memo-text">${m.item}</span>
+            <span class="memo-count">${m.count}회</span>
+          </div>
+        `).join('')}
       </div>
     `;
   }
@@ -908,17 +765,17 @@ class MimiApp {
     const container = document.getElementById('detail-records');
     if (this.viewMode !== 'daily' && container.classList.contains('hidden')) return;
 
-    container.innerHTML = '<div class="loading">로딩 중</div>';
+    container.innerHTML = '<div class="loading">로딩 중...</div>';
 
     const result = await api.getRecords(this.currentPeriod, this.selectedDate);
 
     if (!result.ok) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">😿</div><p class="no-data-text">데이터를 불러올 수 없습니다.</p></div>';
+      container.innerHTML = '<p class="no-data">데이터를 불러올 수 없습니다.</p>';
       return;
     }
 
     if (result.data.records.length === 0) {
-      container.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><p class="no-data-text">기록이 없습니다.</p></div>';
+      container.innerHTML = '<p class="no-data">기록이 없습니다.</p>';
       return;
     }
 
@@ -932,16 +789,14 @@ class MimiApp {
       records.forEach(record => {
         const time = Utils.formatKSTTime(record.recorded_at);
         const details = Utils.formatRecordDetail(record);
-        html += `<div class="detail-record-card" data-record-id="${record.id}">
-          <div class="detail-record-header">
-            <span class="detail-time">${time}</span>
-            <div class="detail-record-actions">
-              <button class="record-action-btn edit-btn" data-id="${record.id}" title="수정">✏️</button>
-              <button class="record-action-btn delete-btn" data-id="${record.id}" title="삭제">🗑️</button>
-            </div>
-          </div>
-          <div class="detail-record-content">
+        html += `<div class="detail-record" data-record-id="${record.id}">
+          <div class="detail-time">${time}</div>
+          <div class="detail-content">
             ${details.map(line => `<div class="detail-line">${line}</div>`).join('')}
+          </div>
+          <div class="detail-actions">
+            <button class="edit-btn" data-id="${record.id}">수정</button>
+            <button class="delete-btn" data-id="${record.id}">삭제</button>
           </div>
         </div>`;
       });
@@ -971,13 +826,10 @@ class MimiApp {
     });
   }
 
-  // 기록 삭제 핸들러 - 새 모달 사용
-  handleDeleteRecord(recordId) {
-    this.deleteTargetId = recordId;
-    document.getElementById('delete-modal').classList.remove('hidden');
-  }
+  async handleDeleteRecord(recordId) {
+    const confirmed = await Utils.showConfirm('이 기록을 삭제하시겠습니까?');
+    if (!confirmed) return;
 
-  async confirmDeleteRecord(recordId) {
     const result = await api.deleteRecord(recordId);
 
     if (result.ok && result.data.success) {
@@ -989,7 +841,6 @@ class MimiApp {
     }
   }
 
-  // 기록 수정 핸들러
   async handleEditRecord(recordId) {
     const result = await api.getRecord(recordId);
     if (!result.ok || !result.data.success) {
@@ -1010,9 +861,6 @@ class MimiApp {
       if (waterRadio) {
         waterRadio.checked = true;
         this.recordForm.water = record.water;
-        document.querySelectorAll('#water-group .radio-label').forEach(l => {
-          l.classList.toggle('selected', l.dataset.value === record.water);
-        });
       }
     }
 
@@ -1022,34 +870,29 @@ class MimiApp {
       this.recordForm.food_enabled = true;
       this.recordForm.food_amount = record.food_amount;
       document.getElementById('food-value').textContent = record.food_amount;
-      this.toggleStepper('food-stepper-container', true);
+      this.toggleStepper('food-stepper', true);
     }
 
     // 파티믹스
     if (record.snack_partymix) {
-      document.getElementById('snack-partymix-chip').classList.add('selected');
       document.getElementById('snack-partymix-enabled').checked = true;
       this.recordForm.snack_partymix_enabled = true;
       this.recordForm.snack_partymix = record.snack_partymix;
-      document.getElementById('partymix-value').textContent = record.snack_partymix;
-      document.getElementById('snack-details').classList.remove('hidden');
-      document.getElementById('partymix-row').classList.remove('hidden');
+      document.getElementById('snack-partymix-value').textContent = record.snack_partymix;
+      this.toggleStepper('snack-partymix-stepper', true);
     }
 
     // 조공
     if (record.snack_jogong) {
-      document.getElementById('snack-jogong-chip').classList.add('selected');
       document.getElementById('snack-jogong-enabled').checked = true;
       this.recordForm.snack_jogong_enabled = true;
       this.recordForm.snack_jogong = record.snack_jogong;
-      document.getElementById('jogong-value').textContent = record.snack_jogong;
-      document.getElementById('snack-details').classList.remove('hidden');
-      document.getElementById('jogong-row').classList.remove('hidden');
+      document.getElementById('snack-jogong-value').textContent = record.snack_jogong;
+      this.toggleStepper('snack-jogong-stepper', true);
     }
 
     // 츄르
     if (record.snack_churu) {
-      document.getElementById('snack-churu-chip').classList.add('selected');
       document.getElementById('snack-churu-enabled').checked = true;
       this.recordForm.snack_churu = true;
     }
@@ -1060,7 +903,7 @@ class MimiApp {
       this.recordForm.poop_enabled = true;
       this.recordForm.poop_count = record.poop_count;
       document.getElementById('poop-value').textContent = record.poop_count;
-      this.toggleStepper('poop-stepper-container', true);
+      this.toggleStepper('poop-stepper', true);
     }
 
     // 소변
@@ -1068,15 +911,9 @@ class MimiApp {
       document.getElementById('urine-enabled').checked = true;
       this.recordForm.urine_enabled = true;
       this.recordForm.urine_size = record.urine_size;
-      document.getElementById('urine-group').style.opacity = '1';
-      document.getElementById('urine-group').style.pointerEvents = 'auto';
+      this.toggleRadioGroup('urine-options', true);
       const urineRadio = document.querySelector(`input[name="urine"][value="${record.urine_size}"]`);
-      if (urineRadio) {
-        urineRadio.checked = true;
-        document.querySelectorAll('#urine-group .radio-label').forEach(l => {
-          l.classList.toggle('selected', l.dataset.value === record.urine_size);
-        });
-      }
+      if (urineRadio) urineRadio.checked = true;
     }
 
     // 메모
@@ -1085,14 +922,8 @@ class MimiApp {
         const memos = JSON.parse(record.memo);
         if (Array.isArray(memos)) {
           memos.forEach(memoValue => {
-            const label = document.querySelector(`#memo-options .memo-label[data-value="${memoValue}"]`);
-            if (label) {
-              const checkbox = label.querySelector('input[type="checkbox"]');
-              if (checkbox) {
-                checkbox.checked = true;
-                label.classList.add('selected');
-              }
-            }
+            const checkbox = document.querySelector(`#memo-options input[value="${memoValue}"]`);
+            if (checkbox) checkbox.checked = true;
           });
           this.recordForm.memo = memos;
         }
